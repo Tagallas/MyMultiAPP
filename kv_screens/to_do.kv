@@ -1,0 +1,55 @@
+<ToDoListHeader>
+    pos_hint: {'top': 1}
+    size_hint: 1, None
+    height: root.m_size
+    orientation: 'horizontal'
+    MenuButton:
+        size_hint: None, None
+        size: root.m_size, root.m_size
+    BackToMenuButton:
+        size_hint: None, None
+        size: root.m_size, root.m_size
+    Label:
+        text: "To Do"
+        font_size:  20
+
+<ToDoListMainScreen>
+    size_hint: 1, None
+    height: self.minimum_height
+    orientation: 'vertical'
+
+
+## ___SIDE_MENU___
+
+<MenuButton@Button>
+    text: 'Menu'
+    on_press: root.parent.parent.on_menu_click()
+
+<SideMenu>
+    canvas.before:
+        Color:
+            rgba: 0, 0, 0, 1
+        Rectangle:
+            size: self.width * .6, self.height
+        Color:
+            rgba: 0, 0, 0, .7
+        Rectangle:
+            size: self.width * .4, self.height
+            pos: self.width * .6, 0
+    ScrollView:
+        size_hint: .6, 1
+        SideMenuButtons:
+            size_hint: 1, None
+            height: self.minimum_height
+
+<SideMenuHeader>
+    size_hint: 1, None
+    height: root.m_size
+    orientation: 'horizontal'
+    Button:
+        size_hint: None, None
+        size: root.m_size, root.m_size
+        text: 'Menu'
+        on_press: root.parent.parent.parent.parent.on_menu_exit()
+    Label:
+        text: 'To Do'
