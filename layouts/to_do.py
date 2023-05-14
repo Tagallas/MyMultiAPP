@@ -4,6 +4,7 @@ from kivy.uix.relativelayout import RelativeLayout
 from kivy.core.window import Window
 from kivy.uix.label import Label
 from kivy.uix.button import Button
+from kivy.uix.checkbox import CheckBox
 
 import sqlite3
 
@@ -57,9 +58,13 @@ class ToDoListMainScreen(BoxLayout):
                     ORDER BY N.priority, N.deadline
                     """.format(label_id))
         items = db.fetchall()
-        for it in items:
-            self.add_widget(Button(text=it[1], size_hint=(1, None), height=m_size_global))
+        # for it in items:
+        #     self.add_widget(Button(text=it[1], size_hint=(1, None), height=m_size_global))
         database.close()
+        self.add_widget(CheckBox(on_active=self.on_checkpoint))
+
+    def on_checkpoint(self, v):
+        print('checkpoint')
 
 
 class ToDoListScroll(ScrollView):

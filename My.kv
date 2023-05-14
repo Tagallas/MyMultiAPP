@@ -1,11 +1,28 @@
-#Menu
-ToDoList
-<Menu>:
-    # MainLayout:
-    # ToDoList:
-        # size_hint: 1, 1
+#: import WipeTransition kivy.uix.screenmanager.WipeTransition
+SM:
 
-<MainLayout>:
+<SM>:
+    transition: WipeTransition()
+
+<S1>:
+    name: 's1'
+    MainLayout:
+
+<S2>:
+    name: 'TO_DO'
+    ToDoList:
+
+<S3>:
+    name: 'Notebook'
+    Notebook:
+
+<S4>:
+    name: 'GYM'
+    Gym:
+
+#Menu
+#ToDoList
+
 
 
 
