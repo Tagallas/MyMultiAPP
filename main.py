@@ -75,7 +75,8 @@ class SM(ScreenManager):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.screens = [S1(), S2(), S3(), S4()]
-        self.current = 's1'
+        self.current = 'TO_DO'
+        #self.current = 's1'
         # print(self.screens)
 
     def on_press_menu(self, screen_name='s1'):
@@ -122,4 +123,4 @@ class MyApp(App):
 
 if __name__ == '__main__':
     MyApp().run()
-    # create_all_db()
+    #create_all_db()

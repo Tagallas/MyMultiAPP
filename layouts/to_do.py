@@ -10,6 +10,7 @@ import sqlite3
 
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.stacklayout import StackLayout
+from kivy.uix.textinput import TextInput
 
 menu_button_ratio = 8
 side_menu_button_ratio = 10
@@ -52,16 +53,19 @@ class ToDoListMainScreen(BoxLayout):
         db = database.cursor()
         db.execute("SELECT rowid FROM Labels WHERE label_name='{}'".format(text))
         label_id = db.fetchone()[0]
-        db.execute("""SELECT N.deadline, N.note, N.image 
+        # database.commit()
+        db.execute("""SELECT N.deadline, N.priority,  N.note, N.image, N.active
                     FROM Labels LEFT JOIN Notes AS N on Labels.ROWID = N.label_id 
-                    WHERE N.label_id = {}
-                    ORDER BY N.priority, N.deadline
+                    WHERE N.label_id = {} AND N.active=0
+                    ORDER BY N.active, N.priority, N.deadline
                     """.format(label_id))
         items = db.fetchall()
-        # for it in items:
-        #     self.add_widget(Button(text=it[1], size_hint=(1, None), height=m_size_global))
+        for it in items:
+            dictionary = {'deadline': it[0], 'priority': it[1], 'note': it[2], 'image': it[3],
+                          'is_active': it[4]}
+            self.add_widget(CheckNote(dictionary))
+        self.add_widget(AddNote())
         database.close()
-        self.add_widget(CheckBox(on_active=self.on_checkpoint))
 
     def on_checkpoint(self, v):
         print('checkpoint')
@@ -109,3 +113,33 @@ class SideMenuButtons(StackLayout):
 class SideMenuHeader(BoxLayout):
     m_size = m_size_global
 
+
+class CheckNote(BoxLayout):
+    m_size = m_size_global
+
+    def __init__(self, items, **kwargs):
+        super().__init__(**kwargs)
+        self.add_widget(Label(size_hint=(.05, 1)))
+        self.add_widget(CheckBox(active=items['is_active'], size_hint=(.1, 1)))
+        self.add_widget(Label(size_hint=(.05, 1)))
+        self.add_widget(TextInput(size_hint=(1, 1), text=items['note'], multiline=False,
+                                  foreground_color=(1, 1, 1, 1), background_color=(0, 0, 0, 1),
+                                  halign='left', font_size=self.height/2.7, padding_y=(self.height/4.05, 0),
+                                  cursor_color=(1, 1, 1, 1)))
+        # self.add_widget(Button(text=items['note'], size_hint=(.5, 1)))
+
+
+class AddNote(BoxLayout):
+    m_size = m_size_global
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.add_widget(Label(size_hint=(.2, 1)))
+        self.add_widget(Button(background_normal='images/add_sign.png', size_hint=(None, 1), width=self.m_size,
+                               on_press=self.add_note, background_down='images/black_screen.png'))
+        self.add_widget(Button(text='Add Note', font_size=self.height/2.7, size_hint=(.4, 1),
+                               background_color=(0, 0, 0, 1), on_press=self.add_note))
+        self.add_widget(Label())
+
+    def add_note(self, button):
+        print('note added')
