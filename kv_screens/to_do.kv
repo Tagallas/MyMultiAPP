@@ -1,71 +1,29 @@
-<ToDoListHeader>
-    pos_hint: {'top': 1}
-    size_hint: 1, None
-    height: root.m_size
-    orientation: 'horizontal'
-    MenuButton:
-        size_hint: None, None
-        size: root.m_size, root.m_size
-    BackToMenuButton:
-        size_hint: None, None
-        size: root.m_size, root.m_size
-    Label:
-        text: "To Do"
-        font_size:  20
-
-<ToDoListMainScreen>
-    size_hint: 1, None
-    height: self.minimum_height
-    orientation: 'vertical'
+#: import MDRaisedButton kivymd.uix.button.MDRaisedButton
 
 
-### ___SIDE_MENU___
+<ToDoList>
+    id: to_do_list
+    MDScreenManager:
+        MDScreen:
+            MDTopAppBar:
+                id: app_bar
+                title: root.items[0]
+                pos_hint: {"top": 1}
+                # elevation: 9
+                md_bg_color: (.1, .2, .6, .85)
+                # specific_text_color: "#4a4939"
+                left_action_items: [["menu", lambda x: nav_drawer.set_state("toggle")], ["arrow-left", lambda x: root.parent.parent.on_press_menu()]]
 
+    MDNavigationDrawer:
+        id: nav_drawer
+        radius: (0, 16, 16, 0)
+        size_hint: .7, 1
+        #padding:
+        type: "standard"
+        close_on_click: True
+        enable_swiping: True
 
-<SideMenu>
-    canvas.before:
-        Color:
-            rgba: 0, 0, 0, 1
-        Rectangle:
-            size: self.width * .6, self.height
-        Color:
-            rgba: 0, 0, 0, .7
-        Rectangle:
-            size: self.width * .4, self.height
-            pos: self.width * .6, 0
-            on_press: root.parent.on_menu_exit()
-    ScrollView:
-        size_hint: .6, 1
-        SideMenuButtons:
-            size_hint: 1, None
-            height: self.minimum_height
-
-<SideMenuHeader>
-    size_hint: 1, None
-    height: root.m_size
-    orientation: 'horizontal'
-    Button:
-        size_hint: None, None
-        size: root.m_size, root.m_size
-        text: 'Menu'
-        on_press: root.parent.parent.parent.parent.on_menu_exit()
-    Label:
-        text: 'To Do'
-
-
-### ___CUSTOM_WIDGETS___
-
-
-<CheckNote>
-    orientation: 'horizontal'
-    size_hint: 1, None
-    height: root.m_size
-
-<MenuButton@Button>
-    text: 'Menu'
-    on_press: root.parent.parent.on_menu_click()
-
-<AddNote>
-    orientation: 'horizontal'
-    size_hint: 1, None
-    height: root.m_size
+        MDScrollView:
+            CustomNavigationDrawer:
+                #spacing: 5
+                #padding: 0,0,0,100

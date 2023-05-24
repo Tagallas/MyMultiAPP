@@ -1,4 +1,11 @@
-<BackToMenuButton@Button>
+#: import MDRaisedButton kivymd.uix.button.MDRaisedButton
+
+<BackToMenuButton@MDRaisedButton>
     text: "Back"
-    # on_press: root.parent.parent.parent.on_press_menu()
-    on_press: root.parent.parent.parent.parent.on_press_menu()
+    font_size: 15
+    rounded_button: False
+    _radius: 5
+    md_bg_color: (.1, .2, .6, .85)
+    on_release: root.parent.parent.parent.parent.on_press_menu()
+
+
