@@ -5,14 +5,27 @@
     id: to_do_list
     MDScreenManager:
         MDScreen:
+            id: screen
+
             MDTopAppBar:
                 id: app_bar
                 title: root.items[0]
                 pos_hint: {"top": 1}
-                # elevation: 9
+                #elevation: 9
                 md_bg_color: (.1, .2, .6, .85)
                 # specific_text_color: "#4a4939"
                 left_action_items: [["menu", lambda x: nav_drawer.set_state("toggle")], ["arrow-left", lambda x: root.parent.parent.on_press_menu()]]
+
+            MDScrollView:
+                size_hint_y: None
+                height: screen.height - app_bar.height
+                pos_hint: {"top": (screen.height - app_bar.height) / screen.height}
+                MainView:
+                    id: main_screen
+                    #pos_hint: {"top": 1}
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
 
     MDNavigationDrawer:
         id: nav_drawer
@@ -25,5 +38,18 @@
 
         MDScrollView:
             CustomNavigationDrawer:
-                #spacing: 5
-                #padding: 0,0,0,100
+
+<TaskLabel>
+    canvas.before:
+        Color:
+            rgba: (.1,.1,.1,1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+<Task>
+    canvas.before:
+        Color:
+            rgba: (0,0,0,1)
+        Rectangle:
+            pos: self.pos
+            size: self.size

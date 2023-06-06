@@ -64,24 +64,10 @@ class SM(ScreenManager):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.transition = FadeTransition()
-        self.screens = [S1(), S2(), S3(), S4()]
-        self.current = 'TO_DO'
-        # self.current = 's1'
-        # print(self.screens)
-
-    def on_press_menu(self, screen_name='s1'):
-        self.current = screen_name
-        # print(self.screens)
-
-
-class SM2(ScreenManager):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.transition = FadeTransition()
-        self.screens = [S1(), S2(), S3(), S4()]
-        self.current = 'TO_DO'
+        #self.screens = [S1(), S2(), S3(), S4()]
+        #self.current = 'TO_DO'
         #self.current = 's1'
-        # print(self.screens)
+        #print(self.screen_names)
 
     def on_press_menu(self, screen_name='s1'):
         self.current = screen_name
