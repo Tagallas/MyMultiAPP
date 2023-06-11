@@ -1,12 +1,15 @@
 #: import MDRaisedButton kivymd.uix.button.MDRaisedButton
-
+#: import FadeTransition kivy.uix.screenmanager.FadeTransition
+#: import MDFadeSlideTransition kivymd.uix.transition.MDFadeSlideTransition
 
 <ToDoList>
     id: to_do_list
-    MDScreenManager:
+    NavigationDrawerScreenManager:
+        id: screen_manager
+        transition: FadeTransition()
         MDScreen:
             id: screen
-
+            name: 'screen'
             MDTopAppBar:
                 id: app_bar
                 title: root.items[0]
@@ -27,17 +30,22 @@
                     size_hint_y: None
                     height: self.minimum_height
 
+        EditScreen:
+            id: edit_screen
+            name: 'edit_screen'
+
+
     MDNavigationDrawer:
         id: nav_drawer
         radius: (0, 16, 16, 0)
         size_hint: .7, 1
-        #padding:
         type: "standard"
         close_on_click: True
         enable_swiping: True
 
         MDScrollView:
-            CustomNavigationDrawer:
+            CustomNavigationDrawer: #nic nie dodawaj bo sie usunie
+                id: md_list_nav_drawer
 
 <TaskLabel>
     canvas.before:
