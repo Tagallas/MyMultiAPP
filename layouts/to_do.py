@@ -7,6 +7,7 @@ from kivy.uix.button import Button
 from kivy.uix.checkbox import CheckBox
 from kivy.uix.image import Image
 from kivy.uix.screenmanager import Screen, NoTransition, FadeTransition, ScreenManager
+from kivy.clock import Clock
 
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.stacklayout import StackLayout
@@ -17,6 +18,7 @@ import sqlite3
 
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.button import MDRaisedButton, MDIconButton, MDFlatButton
+from kivymd.uix.dialog import MDDialog
 from kivymd.uix.label import MDIcon
 from kivymd.uix.list import MDList, OneLineIconListItem, IconLeftWidget, IconRightWidget, OneLineRightIconListItem, \
     ILeftBody, ILeftBodyTouch
@@ -27,6 +29,7 @@ from kivymd.uix.relativelayout import MDRelativeLayout
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.screenmanager import MDScreenManager
 from kivymd.uix.scrollview import MDScrollView
+from kivymd.uix.snackbar import Snackbar
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.toolbar import MDTopAppBar
 from kivymd.uix.widget import MDWidget
@@ -38,25 +41,20 @@ menu_button_ratio = 8
 side_menu_button_ratio = 15
 m_size_global = Window.size[0] / menu_button_ratio
 s_butt_size_global = Window.size[1] / side_menu_button_ratio
-TAG = 'ERROR'
+TAG = 'TO DO'
 
 
 class ToDoList(MDNavigationLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        database = sqlite3.connect('databases/to_do.db')
-        db = database.cursor()
-        db.execute("SELECT label_name FROM Labels WHERE id_default=1")
-        self.items = db.fetchone()
-        database.close()
         global TAG
-        TAG = self.items[0]
+        self.items = TAG
 
     def get_tag(self):
         return self.tag
 
 
-class NavigationDrawerScreenManager(MDScreenManager): #  tu musi być screenmanager żeby nie było laga
+class NavigationDrawerScreenManager(MDScreenManager): #  TODO tu musi być screenmanager żeby nie było laga
     pass
 
 
@@ -114,7 +112,7 @@ class TaskLabel(BoxLayout):
         self.add_widget(Label(text=label, size_hint_x=.6))
         self.add_widget(Label(size_hint_x=.2))
         self.add_widget(MDIconButton(icon='trash-can-outline', icon_size=Window.size[1] / 40,
-                                     center=(.5, .5), on_release=self.press))
+                                     center=(.5, .5), on_release=self.press, pos_hint={"center_x": .5, "center_y": .5}))
 
     def press(self, but):
         print(but.icon)
@@ -237,13 +235,16 @@ class CustomNavigationDrawer(MDList):
 class EditScreen(MDScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.info_window = None
+        self.remove_label_rowid = None
+
         self.touched_id = None
         self.absolute_pos_0 = None
         self.widget_y_0 = None
         self.labels = []
 
         self.widget_height = Window.size[0]*.1
-        self.edit_window = MDRelativeLayout()
+        self.edit_window = RelativeLayout()
         self.save_button = MDFlatButton(text='SAVE', size_hint_x=.35, font_size=10,
                                      md_bg_color=(0, 0, 0, 0), theme_text_color="Custom", text_color=(1, 1, 1, 1))
         self.window = MDBoxLayout(
@@ -259,12 +260,92 @@ class EditScreen(MDScreen):
                     spacing=self.widget_height*.1, padding=(self.widget_height*.3,0,self.widget_height*.3,0))
         self.add_widget(self.window)
 
+    # edit label
     def edit_label(self, rowid, label_name):
         self.window.height += self.widget_height
-        self.edit_window.add_widget(MDTextField(id=str(rowid), text=label_name, size_hint_y=None, text_color_focus='white',
-                                           line_color_focus='white', height=self.widget_height, required=True))
+        self.edit_window.add_widget(MDBoxLayout(
+                                        MDTextField(id='text_field', text=label_name,
+                                            text_color_focus='white', line_color_focus='white',
+                                            required=True),
+                                        MDIconButton(id=str(rowid), text=label_name, icon='trash-can-outline',
+                                                     size_hint_x=.1, pos_hint={"center_x": .5, "center_y": .75},
+                                                     on_release=self.remove_dialog),
+                                        id=str(rowid), size_hint_y=None, height=self.widget_height))
         self.save_button.bind(on_release=self.save_label)
 
+    def save_label(self, *args):
+        if self.edit_window.children[0].ids['text_field'].text:
+            database = sqlite3.connect('databases/to_do.db')
+            db = database.cursor()
+
+            db.execute("""
+                            UPDATE Labels
+                            SET label_name = {}
+                            WHERE ROWID = {};
+                        """.format('"'+self.edit_window.children[0].ids['text_field'].text+'"', self.edit_window.children[0].id))
+            database.commit()
+            database.close()
+
+            self.parent.parent.ids.md_list_nav_drawer.reload()
+            self.exit()
+            self.save_button.unbind(on_release=self.save_label)
+        else:
+            if not self.info_window:
+                self.info_window = Snackbar(text='Label name can not be empty!')
+            self.info_window.open()
+            Clock.schedule_once(self.close_info_window, 3)
+
+    # add/remove label
+    def add_label(self):
+        self.window.height += self.widget_height
+        self.edit_window.add_widget(MDTextField(id='text_field', text="", hint_text='Label Name:',
+                                    hint_text_color_focus="white", text_color_focus='white',
+                                    line_color_focus='white', required=True),)
+        self.save_button.bind(on_release=self.add_additional_label)
+
+    def add_additional_label(self, *args):
+        if self.edit_window.children:
+            if self.edit_window.children[0].text:
+                database = sqlite3.connect('databases/to_do.db')
+                db = database.cursor()
+
+                db.execute(""" SELECT COUNT(ROWID) FROM Labels """)
+                number_of_labels = db.fetchone()
+                db.execute(" INSERT INTO Labels VALUES (" + str(number_of_labels[0]+2) + ", '" + self.edit_window.children[0].text + "'); ")
+                database.commit()
+                database.close()
+
+                self.parent.parent.ids.md_list_nav_drawer.reload()
+                self.exit()
+                self.save_button.unbind(on_release=self.add_additional_label)
+            else:
+                if not self.info_window:
+                    self.info_window = Snackbar(text='Label name can not be empty!')
+                self.info_window.open()
+                Clock.schedule_once(self.close_info_window, 3)
+
+    def remove_label(self, *args):
+        self.close_info_window()
+        database = sqlite3.connect('databases/to_do.db')
+        db = database.cursor()
+
+        db.execute(" DELETE FROM Labels WHERE ROWID = " + str(self.remove_label_rowid))
+        db.execute(" DELETE FROM Notes WHERE label_id = " + str(self.remove_label_rowid))
+        database.commit()
+        database.close()
+
+        if len(self.edit_window.children) == 1:
+            #  TODO to samo co przy save
+            self.parent.parent.ids.md_list_nav_drawer.reload()
+            self.exit()
+            self.save_button.unbind(on_release=self.save_label)
+        else:
+            self.edit_window.clear_widgets()
+            self.window.height = Window.size[0] * .15
+            self.save_button.unbind(on_release=self.save_label)
+            self.edit_all_labels()
+
+    # edit all labels
     def edit_all_labels(self):
         self.save_button.bind(on_release=self.save_labels)
         database = sqlite3.connect('databases/to_do.db')
@@ -280,6 +361,9 @@ class EditScreen(MDScreen):
                                      pos_hint={"center_x": .5, "center_y": .8}, ripple_alpha=0, on_press=self.dots_press,
                                      id='icon_but'),
                         MDTextField(id=str(item[1]), text=item[0], text_color_focus='white', line_color_focus='white', required=True),
+                        MDIconButton(id=item[0], text=str(item[1]), icon='trash-can-outline',
+                                      size_hint_x=.1, pos_hint={"center_x": .5, "center_y": .75},
+                                      on_release=self.remove_dialog, icon_size=self.widget_height*.5),
                         size_hint_y=None, height=self.widget_height, orientation='horizontal', pos=(0, height),
                         spacing=self.widget_height*.1), item[1]))
             self.edit_window.add_widget(self.labels[-1][0])
@@ -333,18 +417,15 @@ class EditScreen(MDScreen):
         #  2: zamknąć EditScreen
         #  3: odświerzyć MainView
 
-    def add_label(self):
-        pass
+    def save_labels(self, *args):
+        for label_tuple in self.labels:
+            if not label_tuple[0].ids[str(label_tuple[1])].text:
+                if not self.info_window:
+                    self.info_window = Snackbar(text='Label name can not be empty!')
+                self.info_window.open()
+                Clock.schedule_once(self.close_info_window, 3)
+                return
 
-    def edit_task(self, task):
-        self.save_button.bind(on_release=self.save_tasks)
-
-    def exit(self, butt):
-        self.edit_window.clear_widgets()
-        self.window.height = Window.size[0] * .15
-        self.parent.current = 'screen'
-
-    def save_labels(self, butt):
         database = sqlite3.connect('databases/to_do.db')
         db = database.cursor()
         for idx, label_tuple in enumerate(self.labels, 1):
@@ -358,30 +439,48 @@ class EditScreen(MDScreen):
 
         self.labels = []
         self.parent.parent.ids.md_list_nav_drawer.reload()
-        self.exit(butt)
+        self.exit()
         self.save_button.unbind(on_release=self.save_labels)
         # TODO tu trzeba dodać żeby aktualizowało MainView (gdy jest w trybie category)
         # print('save-labels')
 
-    def save_label(self, but):
-        database = sqlite3.connect('databases/to_do.db')
-        db = database.cursor()
+    # edit task
+    def edit_task(self, *args):
+        self.save_button.bind(on_release=self.save_tasks)
 
-        db.execute("""
-                        UPDATE Labels
-                        SET label_name = {}
-                        WHERE ROWID = {};
-                    """.format('"'+self.edit_window.children[0].text+'"', self.edit_window.children[0].id))
-        database.commit()
-        database.close()
-
-        self.parent.parent.ids.md_list_nav_drawer.reload()
-        self.exit(but)
-        self.save_button.unbind(on_release=self.save_label)
-
-    def save_tasks(self, butt):
-
-        self.exit(butt)
+    def save_tasks(self, *args):
+        self.exit()
         self.save_button.unbind(on_release=self.save_tasks)
         # print('save-tasks')
+
+    # close window
+    def remove_dialog(self, but):
+        self.remove_label_rowid = int(but.text)
+        if not self.info_window:
+            self.info_window = MDDialog(
+                text="Remove label: " + but.id + '?',
+                buttons=[
+                   MDFlatButton(
+                        text="CANCEL",
+                        theme_text_color="Custom",
+                        text_color=(1, 1, 1, 1),
+                        on_release=self.close_info_window
+                   ),
+                   MDFlatButton(
+                        text="REMOVE",
+                        theme_text_color="Custom",
+                        text_color=(1, 1, 1, 1),
+                        on_release=self.remove_label
+                   ), ], )
+        self.info_window.open()
+
+    def close_info_window(self, *args):
+        if self.info_window:
+            self.info_window.dismiss()
+            self.info_window = None
+
+    def exit(self, *args):
+        self.edit_window.clear_widgets()
+        self.window.height = Window.size[0] * .15
+        self.parent.current = 'screen'
 

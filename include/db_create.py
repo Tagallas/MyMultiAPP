@@ -1,5 +1,5 @@
 import sqlite3
-
+#DELETE FROM Labels WHERE label_name='Tym1';
 creating_some_data = """
 INSERT INTO Labels VALUES (1, TRUE, 'TO DO');
 INSERT INTO Labels VALUES (3, FALSE, 'Zakupy');
