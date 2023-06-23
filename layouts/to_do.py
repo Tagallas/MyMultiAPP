@@ -13,17 +13,19 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.stacklayout import StackLayout
 from kivy.uix.textinput import TextInput
+from kivy.uix.camera import Camera
 
-from time import sleep
 from datetime import date
 from datetime import datetime
 import sqlite3
 import time
 
 from kivymd.uix.boxlayout import MDBoxLayout
-from kivymd.uix.button import MDRaisedButton, MDIconButton, MDFlatButton, MDRectangleFlatIconButton
+from kivymd.uix.button import MDRaisedButton, MDIconButton, MDFlatButton, MDRectangleFlatIconButton, \
+    MDFillRoundFlatIconButton
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.dropdownitem import MDDropDownItem
+from kivymd.uix.floatlayout import MDFloatLayout
 from kivymd.uix.label import MDIcon, MDLabel
 from kivymd.uix.list import MDList, OneLineIconListItem, IconLeftWidget, IconRightWidget, OneLineRightIconListItem, \
     ILeftBody, ILeftBodyTouch
@@ -43,6 +45,7 @@ from kivymd.uix.widget import MDWidget
 
 from layouts.notebook import Notebook
 import include.get_from_db as get_from_db
+from include.sort import sort_task
 
 task_colors = [(1, 0, 0, .9), (245 / 255, 118 / 255, 39 / 255, 0.8), (245 / 255, 217 / 255, 39 / 255, 0.8),
                    (47 / 255, 151 / 255, 33 / 255, 0.8)]
@@ -53,15 +56,121 @@ m_size_global = Window.size[0] / menu_button_ratio
 s_butt_size_global = Window.size[1] / side_menu_button_ratio
 TAG = 'TO DO'
 
+order_by_global = 'category'
+which_label_global = 'category'
+asc_global = 'asc'
+
 
 class ToDoList(MDNavigationLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         global TAG
         self.items = TAG
+        self.item_height = Window.size[1] / 30
 
     def get_tag(self):
         return self.tag
+
+    def sort(self):
+        self.sort_menu = MDDropdownMenu(caller=self.ids.app_bar,
+                       items=self.create_sort_items(), width_mult=2.3, max_height=self.item_height*5+80)
+        self.sort_menu.open()
+
+    def delete_trash_dialog(self):
+        self.info_window = MDDialog(
+            text="Remove trash?",
+            buttons=[
+                MDFlatButton(
+                    text="CANCEL",
+                    theme_text_color="Custom",
+                    text_color=(1, 1, 1, 1),
+                    on_release=lambda x: self.info_window.dismiss()
+                ),
+                MDFlatButton(
+                    text="REMOVE",
+                    theme_text_color="Custom",
+                    text_color=(1, 1, 1, 1),
+                    on_release=self.delete_trash
+                ), ], )
+        self.info_window.open()
+
+    def delete_trash(self, *args):
+        self.info_window.dismiss()
+        self.ids.trash_can_view.clear_widgets()
+        self.info_window = None
+        database = sqlite3.connect('databases/to_do.db')
+        db = database.cursor()
+        db.execute("""DELETE FROM Trash
+             """)
+        database.commit()
+        database.close()
+
+    def create_sort_items(self):
+        return [{
+                "viewclass": "MDRectangleFlatIconButton",
+                "icon": 'sort',
+                "text": "category",
+                "halign": "left",
+                "icon_size": self.item_height,
+                "text_color": (1, 1, 1, 1),
+                "icon_color": (1, 1, 1, 1),
+                "line_color": (1, 1, 1, 0),
+                "theme_text_color": 'Custom',
+                "on_release": lambda x='category': {self.ids.main_screen.update(x, x), self.sort_menu.dismiss()}
+            },
+            {
+                "viewclass": "MDRectangleFlatIconButton",
+                "icon": 'sort-numeric-ascending',
+                "text": "priority",
+                "halign": "left",
+                "icon_size": self.item_height,
+                "text_color": (1, 1, 1, 1),
+                "icon_color": (1, 1, 1, 1),
+                "line_color": (1, 1, 1, 0),
+                "theme_text_color": 'Custom',
+                "on_release": lambda x=('priority', None, 'asc'): {self.ids.main_screen.update(x[0], x[1], x[2]),
+                                                                    self.sort_menu.dismiss()}
+            },
+            {
+                "viewclass": "MDRectangleFlatIconButton",
+                "icon": 'sort-numeric-descending',
+                "text": "priority desc",
+                "halign": "left",
+                "icon_size": self.item_height,
+                "text_color": (1, 1, 1, 1),
+                "icon_color": (1, 1, 1, 1),
+                "line_color": (1, 1, 1, 0),
+                "theme_text_color": 'Custom',
+                "on_release": lambda x=('priority', None, 'desc'): {self.ids.main_screen.update(x[0], x[1], x[2]),
+                                                                    self.sort_menu.dismiss()}
+            },
+            {
+                "viewclass": "MDRectangleFlatIconButton",
+                "icon": 'sort-clock-ascending-outline',
+                "text": "deadline",
+                "halign": "left",
+                "icon_size": self.item_height,
+                "text_color": (1, 1, 1, 1),
+                "icon_color": (1, 1, 1, 1),
+                "line_color": (1, 1, 1, 0),
+                "theme_text_color": 'Custom',
+                "on_release": lambda x=('deadline', None, 'asc'): {self.ids.main_screen.update(x[0], x[1], x[2]),
+                                                                    self.sort_menu.dismiss()}
+            },
+            {
+                "viewclass": "MDRectangleFlatIconButton",
+                "icon": 'sort-clock-descending-outline',
+                "text": "deadline desc",
+                "halign": "left",
+                "icon_size": self.item_height,
+                "text_color": (1, 1, 1, 1),
+                "icon_color": (1, 1, 1, 1),
+                "line_color": (1, 1, 1, 0),
+                "theme_text_color": 'Custom',
+                "on_release": lambda x=('deadline', None, 'desc'): {self.ids.main_screen.update(x[0], x[1], x[2]),
+                                                                    self.sort_menu.dismiss()}
+            },
+        ]
 
 
 class NavigationDrawerScreenManager(MDScreenManager): #  TODO tu musi być screenmanager żeby nie było laga
@@ -74,16 +183,14 @@ class MainView(MDBoxLayout):
         # self.labels = {rowid: LabelLayout(), }
         self.labels = {}
         self.tasks = []
-        self.order_by = 'priority'
-        self.which_label = 'category'
 
         database = sqlite3.connect('databases/to_do.db')
         db = database.cursor()
-        db.execute("SELECT ROWID, label_name FROM Labels ORDER BY priority")
+        db.execute("SELECT ROWID, label_name, priority FROM Labels ORDER BY priority")
         labels = db.fetchall()
         for label in labels:
             # t_start = time.perf_counter()
-            self.labels[label[0]] = LabelLayout(label[0], label[1])
+            self.labels[label[0]] = LabelLayout(label[0], label[1], label[2])
             self.add_widget(self.labels[label[0]])
             db.execute("""SELECT N.active, N.priority, N.note, N.notification, N.eta, N.deadline, N.notification_time,
                         N.ROWID
@@ -101,11 +208,11 @@ class MainView(MDBoxLayout):
 
     def add_task(self, task):
         self.tasks.append(task)
-        self.labels[task.label_id].add_task(self.tasks[-1])
 
     def reload_task(self, rowid):
         for i in range(len(self.tasks)):
             if self.tasks[i].rowid == rowid:
+                prev_id = int(self.tasks[i].label_id)
                 database = sqlite3.connect('databases/to_do.db')
                 db = database.cursor()
                 db.execute(f"""SELECT active, priority, note, notification, eta, deadline, notification_time,
@@ -117,28 +224,46 @@ class MainView(MDBoxLayout):
 
                 self.tasks[i] = Task(lt[0], it[8], it[0], it[1], it[2], it[3], it[4], it[5], it[6], it[7])
 
-                if int(self.tasks[i].label_id) != it[8]:
-                    self.labels[int(self.tasks[i].label_id)].remove_task(rowid)
+                if int(prev_id) != it[8]:
+                    self.labels[prev_id].remove_task(rowid)
                     self.labels[it[8]].add_task(self.tasks[i])
-                else:
+                else:  # gdy nie ma zmiany label_name
                     self.labels[it[8]].remove_task(rowid)
                     self.labels[it[8]].add_task(self.tasks[i])
 
-                self.labels[it[8]].sort_label_layout()
+                global which_label_global
+                if which_label_global != 'all':
+                    self.labels[it[8]].sort_label_layout()
 
                 database.close()
                 return
 
+    def disable_task(self, rowid):
+        for i in range(len(self.tasks)):
+            if self.tasks[i].rowid == rowid:
+                task = self.tasks[i]
+                task.opacity = .3
+                self.remove_widget(task)
+                self.add_widget(task)
+                return
+
+    def activate_task(self, rowid):
+        for i in range(len(self.tasks)):
+            if self.tasks[i].rowid == rowid:
+                task = self.tasks[i]
+                task.opacity = 1
+                self.update()
+                return
+
     # zmienia label_name / dodaje nową label_name
-    def reload_labels(self, rowid, label_name):
+    def reload_labels(self, rowid, label_name, priority=None):
         if rowid in self.labels.keys():
             self.labels[rowid].reload_label()
-        else:
-            self.labels[rowid] = LabelLayout(rowid, label_name)
-            if self.which_label == 'category':
-                self.add_widget(self.labels[rowid])
-            elif self.which_label != 'all':
-                self.update(self.order_by, rowid)
+            self.update(None, int(rowid))
+        else:  # tutaj dodajesz label
+            global which_label_global, order_by_global
+            self.labels[rowid] = LabelLayout(rowid, label_name, priority)
+            self.update('priority', int(rowid), 'asc')
 
     def remove_label(self, rowid):
         for task in self.tasks:
@@ -147,53 +272,113 @@ class MainView(MDBoxLayout):
         self.remove_widget(self.labels[rowid])
         del self.labels[rowid]
 
-    def sort_labels(self):
-        print('sort_labels')
-
-    def update(self, order_by=None, which_label=None):
+    def update(self, order_by=None, which_label=None, asc=None):
         self.clear_widgets()
+        global order_by_global, which_label_global, asc_global
         if order_by is None:
-            order_by = self.order_by
+            order_by = order_by_global
         if which_label is None:
-            which_label = self.which_label
+            which_label = which_label_global
+        if asc is None:
+            asc = asc_global
 
-        # if order_by != self.order_by:
-        #     pass  # TODO tu trzeba sortowanie
-        if which_label == 'all':  # dodaje po kolei z self.tasks
-            # sort self.tasks by order_by
-            for task in self.tasks:
-                self.add_widget(task)
-        elif which_label == 'category':
-            # labels_keys = sort self.labels.keys() by priority
-                # sort self.labels[x].tasks by order_by
-            for key in self.labels.keys():  # tu labels_keys
-                self.add_widget(self.labels[key])
+        order_by_global = order_by
+        asc_global = asc
+        which_label_global = which_label
+
+        if order_by == 'category':
+            database = sqlite3.connect('databases/to_do.db')
+            db = database.cursor()
+            db.execute("SELECT ROWID FROM Labels ORDER BY priority")
+            ids = db.fetchall()
+            for i in ids:
+                self.labels[i[0]].sort_label_layout('category', 'asc')
+                self.add_widget(self.labels[i[0]])
+
+            database.close()
+
         else:
-            # if self.labels[which_label].order_by != order_by
-                # sort self.labels[which_label] by order_by
-            self.add_widget(self.labels[which_label])
+            if which_label == 'category':
+                which_label = 'all'
+                which_label_global = which_label
 
-        self.order_by = order_by
-        self.which_label = which_label
+            if which_label == 'all':
+                for key in self.labels.keys():
+                    self.labels[key].hide_tasks()
+
+                sort_task(self.tasks)
+                if asc == 'desc':
+                    length = len(self.tasks)
+                    for i in range(int(length/2)):
+                        self.tasks[i], self.tasks[length-i-1] = self.tasks[length-i-1], self.tasks[i]
+
+                disabled = []
+                for task in self.tasks:
+                    if not task.active:
+                        self.add_widget(task)
+                    else:
+                        disabled.append(task)
+
+                for task in disabled:
+                    self.add_widget(task)
+
+            else:
+                self.labels[which_label].sort_label_layout(order_by, asc)
+                self.add_widget(self.labels[which_label])
 
 
 class LabelLayout(MDBoxLayout):
-    def __init__(self, rowid, label_name, **kwargs):
+    def __init__(self, rowid, label_name, priority, **kwargs):
         super().__init__(**kwargs)
         self.orientation = 'vertical'
         self.size_hint_y = None
 
+        self.priority = priority
         self.rowid = rowid
-        self.order_by = 'priority'
         self.widget_height = Window.size[1] / 13
         self.height = self.widget_height * 1.65
 
         self.tasks = []
+        self.disabled_tasks = []
         self.label = TaskLabel(label_name)
         self.add_widget(self.label)
-        self.add_widget(MDRectangleFlatIconButton(icon='plus', text='Add Task', on_release=lambda x: self.add_window(),
-                size_hint=(1, None), text_color=(1, 1, 1, 1), line_color=(1, 1, 1, 0),
-                icon_color=(1, 1, 1, 1), md_bg_color=(.1, .1, .1, .5)))
+        self.add_widget(MDBoxLayout(
+            Label(size_hint_x=.1),
+            MDRectangleFlatIconButton(icon='plus', text='Add Task', on_release=lambda x: self.add_window(),
+                size_hint=(.7, None), text_color=(1, 1, 1, 1), line_color=(1, 1, 1, 0),
+                icon_color=(1, 1, 1, 1), md_bg_color=(.1, .1, .1, .03)),
+            MDIconButton(icon='camera-plus-outline', on_release=lambda x: self.add_photo(self.rowid, label_name),
+                size_hint=(.2, None), text_color=(1, 1, 1, 1), line_color=(1, 1, 1, 0),
+                icon_color=(1, 1, 1, 1), md_bg_color=(.1, .1, .1, .03), pos_hint={'center_y': .53}),
+            orientation='horizontal'))
+
+    def hide_tasks(self):
+        for task in self.tasks:
+            self.remove_widget(task)
+        for d_task in self.disabled_tasks:
+            self.remove_widget(d_task)
+
+    def disable_task(self, rowid):
+        for i in range(len(self.tasks)):
+            if self.tasks[i].rowid == rowid:
+                task = self.tasks[i]
+                size = len(self.tasks) + len(self.disabled_tasks)
+                del self.tasks[i]
+                self.disabled_tasks.append(task)
+                task.opacity = .3
+                for j in range(i, len(self.tasks)):
+                    self.children[size-j-1], self.children[size-j] = self.children[size-j], self.children[size-j-1]
+                return
+
+    def activate_task(self, rowid):
+        for i in range(len(self.disabled_tasks)):
+            if self.disabled_tasks[i].rowid == rowid:
+                task = self.disabled_tasks[i]
+                del self.disabled_tasks[i]
+                self.tasks.append(task)
+                task.opacity = 1
+                self.sort_label_layout()
+                return
 
     def add_window(self):
         self.parent.parent.parent.parent.parent.ids.screen_manager.current = 'edit_screen'
@@ -202,34 +387,91 @@ class LabelLayout(MDBoxLayout):
     def remove_task(self, rowid):
         for i in range(len(self.tasks)):
             if self.tasks[i].rowid == rowid:
-                self.remove_widget(self.tasks[i])
-                del self.tasks[i]
+                global which_label_global
+                if which_label_global != 'all':
+                    self.remove_widget(self.tasks[i])
                 self.height -= self.widget_height
+
+                del self.tasks[i]
                 return
 
-    def sort_label_layout(self, order_by=None):
-        if order_by is None:
-            order_by = self.order_by
-        # sort self.tasks by order_by
-        print(f'sort label {self.rowid} by {order_by}')
+    def remove_disabled(self):
+        database = sqlite3.connect('databases/to_do.db')
+        db = database.cursor()
+        for task in self.disabled_tasks:
+            self.height -= self.widget_height
+            self.remove_widget(task)
+            db.execute(f"""INSERT INTO Trash VALUES (
+                    {task.priority},
+                    '{task.deadline}',
+                    '{task.note}',
+                    NULL,
+                    '{task.eta}',
+                    '{task.notification}',
+                    '{task.notification_time}',
+                    '{date.today().strftime("20%y-%m-%d")}',
+                    {task.label_id}
+            );
+            """)
+            database.commit()
+            db.execute(f"""
+                            DELETE FROM Notes
+                            WHERE ROWID = {task.rowid};
+                        """)
+            database.commit()
+        self.disabled_tasks = []
+        database.close()
+
+    def sort_label_layout(self, order_by=None, asc=None):
+        global order_by_global, asc_global, which_label_global
+        if order_by is not None:
+            order_by_global = order_by
+        if asc is not None:
+            asc_global = asc
+        sort_task(self.tasks)
+
+        if asc == 'desc':
+            length = len(self.tasks)
+            for i in range(int(length / 2)):
+                self.tasks[i], self.tasks[length - i - 1] = self.tasks[length - i - 1], self.tasks[i]
+
+        for task in self.tasks:
+            self.remove_widget(task)
+        for task in self.tasks:
+            self.add_widget(task, 1 + len(self.disabled_tasks))
 
     def reload_label(self):
         database = sqlite3.connect('databases/to_do.db')
         db = database.cursor()
-        db.execute(f"SELECT label_name FROM Labels WHERE ROWID = {self.rowid}")
+        db.execute(f"SELECT label_name, priority FROM Labels WHERE ROWID = {self.rowid}")
         new_name = db.fetchone()
         self.label.update_name(str(new_name[0]))
+        self.priority = new_name[1]
         database.close()
 
     def add_task(self, task):
+        global which_label_global
         self.height += self.widget_height
-        self.tasks.append(task)
-        self.add_widget(self.tasks[-1], 1)
+
+        if task.active:
+            self.disabled_tasks.append(task)
+            task.opacity = .3
+            if which_label_global != 'all':
+                self.add_widget(self.disabled_tasks[-1], 1)
+        else:
+            self.tasks.append(task)
+            if which_label_global != 'all':
+                self.add_widget(self.tasks[-1], 1 + len(self.disabled_tasks))
+
+    def add_photo(self, rowid, label_name):
+        self.parent.parent.parent.parent.parent.ids.screen_manager.current = 'camera_screen'
+        self.parent.parent.parent.parent.parent.ids.camera_layout.build(rowid, label_name)
 
 
 class TaskLabel(BoxLayout):
     def __init__(self, label, **kwargs):
         super().__init__(**kwargs)
+        self.info_window = None
         self.label_name = label
         self.size_hint_y = None
         self.height = Window.size[1] / 13
@@ -242,8 +484,28 @@ class TaskLabel(BoxLayout):
     def update_name(self, name):
         self.children[-1].text = name
 
-    def press(self, but):
-        print(but.icon)
+    def remove(self, *args):
+        self.parent.remove_disabled()
+        self.info_window.dismiss()
+        self.info_window = None
+
+    def press(self, *args):
+        self.info_window = MDDialog(
+            text="Remove completed tasks from label: " + self.label_name + '?',
+            buttons=[
+                MDFlatButton(
+                    text="CANCEL",
+                    theme_text_color="Custom",
+                    text_color=(1, 1, 1, 1),
+                    on_release=lambda x: self.info_window.dismiss()
+                ),
+                MDFlatButton(
+                    text="REMOVE",
+                    theme_text_color="Custom",
+                    text_color=(1, 1, 1, 1),
+                    on_release=self.remove
+                ), ], )
+        self.info_window.open()
 
 
 class Task(BoxLayout):
@@ -259,24 +521,44 @@ class Task(BoxLayout):
         self.notification = notification
         self.notification_time = notification_time
         self.rowid = rowid
+        self.active = active
 
-        global task_colors
         self.size_hint_y = None
         self.height = Window.size[1] / 13
         self.orientation = 'horizontal'
-        self.check_box = CheckBox(size_hint_x=.1, active=active)
+
+        if type(self.active) == int:
+            self.build_checkbox()
+            self.build_rest()
+            self.build_edit()
+
+        elif type(self.active) == str:
+            self.build_back_delete()
+            self.build_rest()
+            self.build_trash()
+
+    def build_trash(self):
+        self.trash = MDIconButton(icon='trash-can-outline', size_hint_x=.2, on_release=self.delete_permanent,
+                                  pos_hint={'center_x': .5, 'center_y': .53})
+        self.add_widget(self.trash)
+
+    def build_back_delete(self):
+        self.back_del = MDIconButton(icon='plus', size_hint_x=.2, on_release=self.back_delete,
+                                     pos_hint={'center_x': .5, 'center_y': .53})
+        self.add_widget(self.back_del)
+
+    def build_checkbox(self):
+        self.check_box = CheckBox(size_hint_x=.1, active=self.active,)
+        self.check_box.bind(active=self.on_checkbox_active)
         self.add_widget(self.check_box)
-        self.add_widget(Label(size_hint_x=.01))
-        self.add_widget(MDIcon(icon='numeric-{}-box-outline'.format(priority), size_hint_x=.1,
-                               text_color=task_colors[priority-1], theme_text_color='Custom',
-                               pos_hint={"center_x": .5, "center_y": .53}))
-        self.add_widget(Label(text=note))
-        if notification:
+
+    def build_edit(self):
+        if self.notification:
             icon = 'bell'
         else:
             icon = 'bell-off-outline'
-        time = str(eta)
-        if eta != '-':
+        time = str(self.eta)
+        if self.eta != '-':
             time = '~'+time+'min'
         else:
             time = ""
@@ -289,23 +571,113 @@ class Task(BoxLayout):
             ),
             Button(text=time, size_hint_y=.2, font_size=font_size*0.8, halign='right', on_release=self.edit,
                    background_color=(0, 0, 0, 0)),
-            Button(text=deadline, size_hint_y=.3, font_size=font_size*1.1, halign='right', on_release=self.edit,
+            Button(text=self.deadline, size_hint_y=.3, font_size=font_size*1.1, halign='right', on_release=self.edit,
                    background_color=(0, 0, 0, 0)),
             orientation='vertical', size_hint_x=.3
         ))
 
-    def move(self):
-        #pos = self.pos_hint['center_x']
-        self.children[0], self.children[1] = self.children[1], self.children[0]
-        self.children[1], self.children[2] = self.children[2], self.children[1]
+    def build_rest(self):
+        global task_colors
+        self.add_widget(Label(size_hint_x=.01))
+        self.add_widget(MDIcon(icon='numeric-{}-box-outline'.format(self.priority), size_hint_x=.1,
+                               text_color=task_colors[self.priority-1], theme_text_color='Custom',
+                               pos_hint={"center_x": .5, "center_y": .53}))
+        self.add_widget(Label(text=self.note))
+
+    def value(self):
+        global order_by_global
+        if order_by_global in ('category', 'priority'):
+            return self.priority, self.deadline
+        elif order_by_global == 'deadline':
+            return self.deadline, self.priority
+
+    def on_checkbox_active(self, instance, value):
+        database = sqlite3.connect('databases/to_do.db')
+        db = database.cursor()
+        if value:
+            db.execute(f"""
+                            UPDATE Notes
+                            SET active = 1
+                            WHERE ROWID = {self.rowid};
+                        """)
+            database.commit()
+            self.active = True
+            self.parent.disable_task(self.rowid)
+        else:
+            db.execute(f"""
+                            UPDATE Notes
+                            SET active = 0
+                            WHERE ROWID = {self.rowid};
+                        """)
+            database.commit()
+            self.active = False
+            self.parent.activate_task(self.rowid)
+        database.close()
 
     def press(self, but):
         print(but.text)
 
     def edit(self, but):
-        self.parent.parent.parent.parent.parent.parent.ids.nav_drawer.set_state("close")
-        self.parent.parent.parent.parent.parent.parent.ids.screen_manager.current = 'edit_screen'
-        self.parent.parent.parent.parent.parent.parent.ids.edit_screen.edit_task(self)
+        if not self.active:
+            global which_label_global
+            if which_label_global == 'all':
+                self.parent.parent.parent.parent.parent.ids.nav_drawer.set_state("close")
+                self.parent.parent.parent.parent.parent.ids.screen_manager.current = 'edit_screen'
+                self.parent.parent.parent.parent.parent.ids.edit_screen.edit_task(self)
+            else:
+                self.parent.parent.parent.parent.parent.parent.ids.nav_drawer.set_state("close")
+                self.parent.parent.parent.parent.parent.parent.ids.screen_manager.current = 'edit_screen'
+                self.parent.parent.parent.parent.parent.parent.ids.edit_screen.edit_task(self)
+
+    def delete_permanent(self, *args):
+        database = sqlite3.connect('databases/to_do.db')
+        db = database.cursor()
+        db.execute(f"""DELETE FROM Trash WHERE ROWID = {self.rowid}
+             """)
+        database.commit()
+        database.close()
+        self.parent.remove_task(self)
+
+    def back_delete(self, *args):
+        database = sqlite3.connect('databases/to_do.db')
+        db = database.cursor()
+        db.execute(f"""
+                INSERT INTO Notes VALUES (
+                                {self.label_id},
+                                {self.priority},
+                                '{self.deadline}',
+                                '{self.note}',
+                                NULL,
+                                0,
+                                '{self.eta}',
+                                '{self.notification}',
+                                '{self.notification_time}');
+                            """)
+        database.commit()
+        db.execute(f"""
+                SELECT ROWID FROM Notes WHERE 
+                            label_id = {self.label_id} AND
+                            priority = {self.priority} AND
+                            deadline = '{self.deadline}' AND
+                            note = '{self.note}' AND
+                            eta = '{self.eta}' AND
+                            notification = '{self.notification}' AND
+                            notification_time = '{self.notification_time}'
+                            """)
+        rowid = int(db.fetchone()[0])
+
+        db.execute(f"SELECT label_name FROM Labels where ROWID = {self.label_id}")
+        l_name = db.fetchone()[0]
+
+        database.close()
+
+        new_task = Task(l_name, self.label_id, 0, self.priority, self.note, self.notification, self.eta, self.deadline,
+                        self.notification_time, rowid)
+        self.parent.parent.parent.parent.parent.ids.main_screen.add_task(new_task)
+        self.parent.parent.parent.parent.parent.ids.main_screen.labels[self.label_id].add_task(new_task)
+        self.parent.parent.parent.parent.parent.ids.main_screen.update()
+
+        self.delete_permanent()
 
 
 class CustomNavigationDrawer(MDList):
@@ -340,18 +712,27 @@ class CustomNavigationDrawer(MDList):
                                             text='Add Label', text_color=(.5, .5, .5, .5),
                                             on_release=self.edit_label, divider=None))
         self.add_widget(MDNavigationDrawerDivider())
+        self.add_widget(OneLineIconListItem(IconLeftWidget(icon="help-circle-outline", on_release=self.print, text='help'),
+                                            text='Day Plan', text_color=(.7, .7, .7, .5),
+                                            on_release=self.print, divider=None))
+        self.add_widget(MDNavigationDrawerDivider())
         self.add_widget(OneLineIconListItem(IconLeftWidget(icon="cog", on_release=self.print, text='cog'),
                                             text='Settings', text_color=(.7, .7, .7, .5),
                                             on_release=self.print, divider=None))
-        self.add_widget(OneLineIconListItem(IconLeftWidget(icon="trash-can-outline", on_release=self.print, text='trash-can'),
+        self.add_widget(OneLineIconListItem(IconLeftWidget(icon="trash-can-outline", on_release=self.trash_open, text='trash-can'),
                                             text='Trash', text_color=(.7, .7, .7, .5),
-                                            on_release=self.print, divider=None))
+                                            on_release=self.trash_open, divider=None))
         self.add_widget(OneLineIconListItem(IconLeftWidget(icon="help-circle-outline", on_release=self.print, text='help'),
                                             text='Help', text_color=(.7, .7, .7, .5),
                                             on_release=self.print, divider=None))
 
     def print(self, butt):
         print(butt.text)
+
+    def trash_open(self, *args):
+        self.parent.parent.parent.ids.nav_drawer.set_state("close")
+        self.parent.parent.parent.ids.trash_can_view.build()
+        self.parent.parent.parent.ids.screen_manager.current = 'trash_can'
 
     def edit_label(self, but):
         self.parent.parent.parent.ids.nav_drawer.set_state("close")
@@ -364,11 +745,12 @@ class CustomNavigationDrawer(MDList):
             self.parent.parent.parent.ids.edit_screen.edit_label(int(but.id), but.text)
 
     def press(self, butt):
+        self.parent.parent.parent.ids.screen_manager.current = 'screen'
         self.parent.parent.parent.ids.nav_drawer.set_state("close")
         if butt.text == 'Labels':
             self.parent.parent.parent.ids.main_screen.update('category', 'category')
         else:
-            self.parent.parent.parent.ids.main_screen.update('priority', int(butt.id))
+            self.parent.parent.parent.ids.main_screen.update('priority', int(butt.id), 'asc')
 
 
 class EditScreen(MDScreen):
@@ -463,7 +845,7 @@ class EditScreen(MDScreen):
 
                 self.parent.parent.ids.md_list_nav_drawer.reload()
                 self.parent.parent.ids.main_screen.reload_labels(int(rowid),
-                                                                 self.edit_window.children[0].text)
+                                                                 self.edit_window.children[0].text, str(number_of_labels[0]+2))
                 self.exit()
                 self.save_button.unbind(on_release=self.add_additional_label)
             else:
@@ -484,7 +866,8 @@ class EditScreen(MDScreen):
 
         self.parent.parent.ids.main_screen.remove_label(int(self.remove_label_rowid))
 
-        if self.parent.parent.ids.main_screen.which_label == self.remove_label_rowid:
+        global which_label_global
+        if which_label_global == self.remove_label_rowid:
             self.parent.parent.ids.main_screen.update('category', 'category')
 
         if len(self.edit_window.children) == 1:
@@ -596,7 +979,7 @@ class EditScreen(MDScreen):
 
         self.labels = []
         self.parent.parent.ids.md_list_nav_drawer.reload()
-        self.parent.parent.ids.main_screen.sort_labels()
+        self.parent.parent.ids.main_screen.update('category', 'category', 'asc')
         self.exit()
 
     # edit task
@@ -791,6 +1174,7 @@ class EditScreen(MDScreen):
         if rowid == -1:
             self.save_new_task()
             return
+
         label_id = int(self.edit_window.children[0].children[1].children[-1].id)
         for el in self.edit_window.children[0].children[1].children[1].text:
             if el < str(0) or el > str(9):
@@ -817,7 +1201,6 @@ class EditScreen(MDScreen):
         database.close()
 
         self.parent.parent.ids.main_screen.reload_task(rowid)
-
         self.parent.parent.ids.main_screen.update()
         self.exit()
 
@@ -903,3 +1286,51 @@ class EditScreen(MDScreen):
         self.window.size_hint_x = .8
 
 
+class TrashCanView(MDBoxLayout):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self):
+        self.clear_widgets()
+        self.tasks = []
+
+        database = sqlite3.connect('databases/to_do.db')
+        db = database.cursor()
+        db.execute("""SELECT priority, deadline, note, eta, notification, notification_time, deleted_date, ROWID, label_id
+             FROM Trash 
+             ORDER BY deleted_date""")
+        items = db.fetchall()
+
+        for i in items:
+            self.tasks.append(Task(None, i[8], i[6], i[0], i[2], i[4], i[3], i[1], i[5], i[7]))
+            self.add_widget(self.tasks[-1])
+
+        database.close()
+
+    def remove_task(self, task):
+        self.remove_widget(task)
+        self.tasks.remove(task)
+
+
+class CameraLayout(MDFloatLayout):
+    def build(self, rowid, label_name):
+        self.md_bg_color = (0, 0, 0, 1)
+        self.camera = TaskCamera(play=True)
+        self.add_widget(self.camera)
+        icon_size = Window.size[0]/8
+        self.add_widget(MDIconButton(pos_hint={'center_x': .5}, icon='camera-outline', size_hint=(None, None),
+                               on_release=lambda x=rowid, y=label_name: self.take_photo(x, y), icon_size=icon_size,
+                               md_bg_color=(32/255, 3/255, 252/255, 1)))
+
+    def take_photo(self, rowid, label_name):
+        self.image = Image()
+        self.camera.export_to_png(f"images/task_image.png")
+        self.remove_widget(self.camera)
+        self.image.source = f"images/task_image.png"
+        self.add_widget(self.image)
+
+
+class TaskCamera(Camera):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.resolution = (640, 480)

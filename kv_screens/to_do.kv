@@ -18,6 +18,7 @@
                 md_bg_color: (.1, .2, .6, .85)
                 # specific_text_color: "#4a4939"
                 left_action_items: [["menu", lambda x: nav_drawer.set_state("toggle")], ["arrow-left", lambda x: root.parent.parent.on_press_menu()]]
+                right_action_items: [["sort", lambda x: root.sort()],]
 
             MDScrollView:
                 size_hint_y: None
@@ -33,6 +34,37 @@
         EditScreen:
             id: edit_screen
             name: 'edit_screen'
+
+        MDScreen:
+            id: camara_screen
+            name: 'camera_screen'
+            CameraLayout:
+                id: camera_layout
+                orientation: 'vertical'
+
+        MDScreen:
+            id: trash_can
+            name: 'trash_can'
+
+            MDTopAppBar:
+                id: app_bar_2
+                title: 'Trash Can'
+                pos_hint: {"top": 1}
+                #elevation: 9
+                md_bg_color: (.1, .2, .6, .85)
+                # specific_text_color: "#4a4939"
+                left_action_items: [["menu", lambda x: nav_drawer.set_state("toggle")], ["arrow-left", lambda x: root.parent.parent.on_press_menu()]]
+                right_action_items: [["trash-can-outline", lambda x: root.delete_trash_dialog()],]
+
+            MDScrollView:
+                size_hint_y: None
+                height: screen.height - app_bar.height
+                pos_hint: {"top": (screen.height - app_bar.height) / screen.height}
+                TrashCanView:
+                    id: trash_can_view
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
 
 
     MDNavigationDrawer:
