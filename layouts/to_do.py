@@ -1,5 +1,6 @@
 from kivy.properties import NumericProperty
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.core.window import Window
 from kivy.uix.label import Label
@@ -9,6 +10,11 @@ from kivy.uix.image import Image
 from kivy.uix.screenmanager import Screen, NoTransition, FadeTransition, ScreenManager
 from kivy.clock import Clock
 from kivy.uix.textinput import TextInput
+from kivy.graphics import Color, Line
+
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
 
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.stacklayout import StackLayout
@@ -22,9 +28,10 @@ import time
 
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.button import MDRaisedButton, MDIconButton, MDFlatButton, MDRectangleFlatIconButton, \
-    MDFillRoundFlatIconButton
+    MDFillRoundFlatIconButton, MDRectangleFlatButton, MDTextButton
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.dropdownitem import MDDropDownItem
+from kivymd.uix.fitimage import FitImage
 from kivymd.uix.floatlayout import MDFloatLayout
 from kivymd.uix.label import MDIcon, MDLabel
 from kivymd.uix.list import MDList, OneLineIconListItem, IconLeftWidget, IconRightWidget, OneLineRightIconListItem, \
@@ -39,6 +46,7 @@ from kivymd.uix.screenmanager import MDScreenManager
 from kivymd.uix.scrollview import MDScrollView
 from kivymd.uix.selectioncontrol import MDCheckbox
 from kivymd.uix.snackbar import Snackbar
+from kivymd.uix.stacklayout import MDStackLayout
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.toolbar import MDTopAppBar
 from kivymd.uix.widget import MDWidget
@@ -1315,22 +1323,129 @@ class TrashCanView(MDBoxLayout):
 class CameraLayout(MDFloatLayout):
     def build(self, rowid, label_name):
         self.md_bg_color = (0, 0, 0, 1)
-        self.camera = TaskCamera(play=True)
-        self.add_widget(self.camera)
+        # self.camera = TaskCamera(play=True)
+        # self.add_widget(self.camera)
         icon_size = Window.size[0]/8
         self.add_widget(MDIconButton(pos_hint={'center_x': .5}, icon='camera-outline', size_hint=(None, None),
                                on_release=lambda x=rowid, y=label_name: self.take_photo(x, y), icon_size=icon_size,
                                md_bg_color=(32/255, 3/255, 252/255, 1)))
 
     def take_photo(self, rowid, label_name):
-        self.image = Image()
-        self.camera.export_to_png(f"images/task_image.png")
-        self.remove_widget(self.camera)
-        self.image.source = f"images/task_image.png"
-        self.add_widget(self.image)
+        # self.camera.export_to_png(f"images/task_image.png")
+        self.clear_widgets()
+
+        image1 = cv2.imread('images/phone_1.jpg')
+        img = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
+        nr = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        image_bin = np.where(img < nr[0], 0, 1)
+
+        # plt.imshow(image_bin, 'gray')
+        # plt.axis('off')
+        # plt.show()
+
+        # cv2.imwrite('images/phone_gray.jpg', img)
+
+        #self.edit_grid = Image(source="images/phone_gray.jpg",)
+
+        self.edit_grid = EditPhoto(md_bg_color=(1,1,1,.1), size_hint=(1, .8), pos_hint={'center_x': .5, 'center_y': .5})
+        self.add_widget(self.edit_grid)
+
+        self.add_widget(MDBoxLayout(
+            MDFlatButton(text='CANCEL', on_release=lambda x: self.exit(), size_hint_min=(None, None), size_hint=(.5, 1),
+                         font_size=Window.size[1]*.03),
+            MDFlatButton(text='SAVE', on_release=lambda x: self.exit(), size_hint_min=(None, None), size_hint=(.5, 1),
+                        font_size=Window.size[1] * .03),
+            orientation='horizontal', size_hint=(1, .1)
+        ))
+
+    def exit(self):
+        self.clear_widgets()
+        self.parent.parent.parent.ids.screen_manager.current = 'screen'
 
 
-class TaskCamera(Camera):
+class EditPhoto(MDFloatLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.resolution = (640, 480)
+        self.add_photo()
+
+    def add_photo(self):
+        self.photo = Image(source="images/phone_gray.jpg", size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
+        #self.photo = Image(source="images/task_image2.png", size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
+        self.add_widget(self.photo)
+
+        #image1 = cv2.imread('images/task_image2.png')
+        image1 = cv2.imread('images/phone_gray.jpg')
+        img_ratio = image1.shape[1]/image1.shape[0]
+        real_ratio = Window.size[0]/(Window.size[1]*.8)
+
+        if img_ratio > real_ratio:
+            self.im_width = Window.size[0]*.9
+            self.im_height = self.im_width/img_ratio
+
+        else:
+            self.im_height = Window.size[1]*.84*.9
+            self.im_width = self.im_height * img_ratio
+
+        self.x0 = Window.size[0]*.05 - 3
+        self.xmax = self.x0+self.im_width
+
+        self.y0 = (Window.size[1]/2) - (self.im_height/2) - 3
+        self.ymax = (Window.size[1]/2) + (self.im_height/2) - 3
+
+        self.add_widget(CutLine('horizontal', self.im_width, y=self.y0))
+        self.add_widget(CutLine('horizontal', self.im_width, y=self.ymax))
+        self.add_widget(CutLine('vertical', self.im_height, x=self.x0))
+        self.add_widget(CutLine('vertical', self.im_height, x=self.xmax))
+
+    def edit_horizontal(self):
+        pass
+
+
+class CutLine(FloatLayout):
+    def __init__(self, orientation, size, **kwargs):
+        super().__init__(**kwargs)
+        line_thickness = 6
+        size += 36
+        if orientation == 'vertical':
+            size += 9
+            self.y = Window.size[1]*.1
+            if Window.size[1]*.8 > size:
+                self.size = (line_thickness, size)
+                self.y += (Window.size[1]*.8 - size)/2
+            else:
+                self.size = (line_thickness, Window.size[1]*.8)
+
+            radius = self.width / 2
+            p1 = (self.x+radius, self.y+radius*2)
+            p2 = (self.x+radius, self.y+self.height-(2*radius))
+            with self.canvas:
+                Color(1, 0, 0)
+                Line(points=[p1[0], p1[1]+radius, p2[0], p2[1]-radius], width=radius * .2)
+                Line(circle=(p1[0], p1[1], radius),)
+                Line(circle=(p2[0], p2[1], radius),)
+
+        else:
+            if Window.size[0] > size:
+                self.size = (size, line_thickness)
+                self.x += (Window.size[0] - size)/2
+            else:
+                self.size = (Window.size[0], line_thickness)
+
+            radius = self.height / 2
+            p1 = (self.x+radius*2, self.y+radius)
+            p2 = (self.x+self.width-(2*radius), self.y+radius)
+            with self.canvas:
+                Color(1, 0, 0)
+                Line(points=[p1[0]+radius, p1[1], p2[0]-radius, p2[1]], width=radius * .2)
+                Line(circle=(p1[0], p1[1], radius),)
+                Line(circle=(p2[0], p2[1], radius),)
+        # print(self.pos)
+
+    def get_position(self):
+        return 1
+
+# class TaskCamera(Camera):
+#     def __init__(self, **kwargs):
+#         super().__init__(**kwargs)
+#         self.resolution = (1500, 1500)
