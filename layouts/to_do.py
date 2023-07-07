@@ -11,20 +11,21 @@ from kivy.uix.screenmanager import Screen, NoTransition, FadeTransition, ScreenM
 from kivy.clock import Clock
 from kivy.uix.textinput import TextInput
 from kivy.graphics import Color, Line
-
-import cv2
-import matplotlib.pyplot as plt
-import numpy as np
-
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.stacklayout import StackLayout
 from kivy.uix.textinput import TextInput
 from kivy.uix.camera import Camera
+from kivy.graphics.texture import Texture
 
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
 from datetime import date
 from datetime import datetime
 import sqlite3
 import time
+
+
 
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.button import MDRaisedButton, MDIconButton, MDFlatButton, MDRectangleFlatIconButton, \
@@ -201,7 +202,7 @@ class MainView(MDBoxLayout):
             self.labels[label[0]] = LabelLayout(label[0], label[1], label[2])
             self.add_widget(self.labels[label[0]])
             db.execute("""SELECT N.active, N.priority, N.note, N.notification, N.eta, N.deadline, N.notification_time,
-                        N.ROWID
+                        N.ROWID, N.image, N.shape
             FROM Labels AS L LEFT JOIN Notes AS N ON L.ROWID = N.label_id
             WHERE N.label_id = {} ORDER BY N.active, N.priority, N.deadline""".format(label[0]))
             items = db.fetchall()
@@ -209,7 +210,13 @@ class MainView(MDBoxLayout):
             # print("Czas obliczeń:", "{:.7f}".format(t_stop - t_start))
 
             for i in items:
-                self.tasks.append(Task(label[1], str(label[0]), i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]))
+                if i[9] is None:
+                    self.tasks.append(Task(label[1], str(label[0]), i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]))
+                else:
+                    shape = np.frombuffer(i[9], dtype=int)
+                    img = np.frombuffer(i[8], dtype=np.uint8)
+                    img.shape = shape
+                    self.tasks.append(Task(label[1], str(label[0]), i[0], i[1], img, i[3], i[4], i[5], i[6], i[7]))
                 self.labels[label[0]].add_task(self.tasks[-1])
 
         database.close()
@@ -224,13 +231,19 @@ class MainView(MDBoxLayout):
                 database = sqlite3.connect('databases/to_do.db')
                 db = database.cursor()
                 db.execute(f"""SELECT active, priority, note, notification, eta, deadline, notification_time,
-                        ROWID, label_id FROM Notes WHERE ROWID = {rowid}""")
+                        ROWID, label_id, image, shape FROM Notes WHERE ROWID = {rowid}""")
                 it = db.fetchone()
 
                 db.execute(f"""SELECT label_name FROM Labels WHERE ROWID = {it[8]}""")
                 lt = db.fetchone()
 
-                self.tasks[i] = Task(lt[0], it[8], it[0], it[1], it[2], it[3], it[4], it[5], it[6], it[7])
+                if it[10] is None:
+                    self.tasks[i] = Task(lt[0], it[8], it[0], it[1], it[2], it[3], it[4], it[5], it[6], it[7])
+                else:
+                    shape = np.frombuffer(it[10], dtype=int)
+                    img = np.frombuffer(it[9], dtype=np.uint8)
+                    img.shape = shape
+                    self.tasks[i] = Task(lt[0], it[8], it[0], it[1], img, it[3], it[4], it[5], it[6], it[7])
 
                 if int(prev_id) != it[8]:
                     self.labels[prev_id].remove_task(rowid)
@@ -406,21 +419,26 @@ class LabelLayout(MDBoxLayout):
     def remove_disabled(self):
         database = sqlite3.connect('databases/to_do.db')
         db = database.cursor()
+
         for task in self.disabled_tasks:
             self.height -= self.widget_height
             self.remove_widget(task)
-            db.execute(f"""INSERT INTO Trash VALUES (
-                    {task.priority},
-                    '{task.deadline}',
-                    '{task.note}',
-                    NULL,
-                    '{task.eta}',
-                    '{task.notification}',
-                    '{task.notification_time}',
-                    '{date.today().strftime("20%y-%m-%d")}',
-                    {task.label_id}
-            );
-            """)
+
+            note = ''
+            img = None
+            shape = None
+            if isinstance(task.note, str):
+                note = task.note
+            else:
+                img = sqlite3.Binary(task.note)
+                shape = np.array(task.note.shape)
+
+            db.execute("""
+                    INSERT INTO Trash (label_id, priority, deadline, note, image, eta, notification, 
+                    notification_time, deleted_date, shape) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    """, (task.label_id, task.priority, task.deadline, note, img, task.eta, task.notification,
+                          task.notification_time, str(date.today().strftime("20%y-%m-%d")), shape))
+
             database.commit()
             db.execute(f"""
                             DELETE FROM Notes
@@ -590,7 +608,17 @@ class Task(BoxLayout):
         self.add_widget(MDIcon(icon='numeric-{}-box-outline'.format(self.priority), size_hint_x=.1,
                                text_color=task_colors[self.priority-1], theme_text_color='Custom',
                                pos_hint={"center_x": .5, "center_y": .53}))
-        self.add_widget(Label(text=self.note))
+        self.add_widget(Label(size_hint_x=.01))
+        # if self.shape is None:
+        if isinstance(self.note, str):
+            self.add_widget(Label(text=self.note))
+        else:
+            buf1 = cv2.flip(self.note, 0)
+            buf = buf1.tostring()
+            image_texture = Texture.create(size=(self.note.shape[1], self.note.shape[0]), colorfmt='luminance')
+            image_texture.blit_buffer(buf, colorfmt='luminance', bufferfmt='ubyte')
+
+            self.add_widget(Image(texture=image_texture, pos_hint={'center_x': .5, 'center_y': .5}))
 
     def value(self):
         global order_by_global
@@ -649,29 +677,35 @@ class Task(BoxLayout):
     def back_delete(self, *args):
         database = sqlite3.connect('databases/to_do.db')
         db = database.cursor()
-        db.execute(f"""
-                INSERT INTO Notes VALUES (
-                                {self.label_id},
-                                {self.priority},
-                                '{self.deadline}',
-                                '{self.note}',
-                                NULL,
-                                0,
-                                '{self.eta}',
-                                '{self.notification}',
-                                '{self.notification_time}');
-                            """)
+
+        note = ''
+        img = None
+        shape = None
+        if isinstance(self.note, str):
+            note = self.note
+        else:
+            img = sqlite3.Binary(self.note)
+            shape = np.array(img.shape)
+
+        db.execute("""
+                        INSERT INTO Notes (label_id, priority, deadline, note, image, active, eta, notification, 
+                        notification_time, shape) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                        """, (self.label_id, self.priority, self.deadline, note, img, 0, self.eta, self.notification,
+                        self.notification_time, shape))
+
         database.commit()
-        db.execute(f"""
-                SELECT ROWID FROM Notes WHERE 
-                            label_id = {self.label_id} AND
-                            priority = {self.priority} AND
-                            deadline = '{self.deadline}' AND
-                            note = '{self.note}' AND
-                            eta = '{self.eta}' AND
-                            notification = '{self.notification}' AND
-                            notification_time = '{self.notification_time}'
-                            """)
+        db.execute("""
+                        SELECT ROWID FROM Notes WHERE
+                                    label_id = ? AND
+                                    priority = ? AND
+                                    deadline = ? AND
+                                    note = ? AND
+                                    image = ? AND
+                                    eta = ? AND
+                                    notification = ? AND
+                                    notification_time = ?
+                                    """, (self.label_id, self.priority, self.deadline, note, img, self.eta,
+                                          self.notification, self.notification_time,))
         rowid = int(db.fetchone()[0])
 
         db.execute(f"SELECT label_name FROM Labels where ROWID = {self.label_id}")
@@ -766,6 +800,7 @@ class EditScreen(MDScreen):
         super().__init__(**kwargs)
         self.info_window = None
         self.remove_label_rowid = None
+        self.images_list = None
 
         self.touched_id = None
         self.absolute_pos_0 = None
@@ -777,12 +812,13 @@ class EditScreen(MDScreen):
 
         self.save_button = MDFlatButton(text='SAVE', size_hint_x=.35, font_size=10,
                                      md_bg_color=(0, 0, 0, 0), theme_text_color="Custom", text_color=(1, 1, 1, 1))
+        self.cancel_button = MDFlatButton(text='CANCEL', size_hint_x=.35, font_size=10, on_release=self.exit,
+                                     md_bg_color=(0, 0, 0, 0), theme_text_color="Custom", text_color=(1, 1, 1, .3))
         self.window = MDBoxLayout(
                     self.edit_window,
                     MDBoxLayout(
                         Label(size_hint_x=.3, color=(0, 0, 0, 0)),
-                        MDFlatButton(text='CANCEL', size_hint_x=.35, font_size=10, on_release=self.exit,
-                                     md_bg_color=(0, 0, 0, 0), theme_text_color="Custom", text_color=(1, 1, 1, .3)),
+                        self.cancel_button,
                         self.save_button,
                         size_hint_y=None, height=Window.size[0] * .07),
                     size_hint=(.8, None), height=Window.size[0] * .15, md_bg_color=(.15, .15, .15, 1),
@@ -958,11 +994,6 @@ class EditScreen(MDScreen):
             self.touched_id = None
             self.absolute_pos_0 = None
 
-        #  edit:
-        #  1: zapisać do bd
-        #  2: zamknąć EditScreen
-        #  3: odświerzyć MainView
-
     def save_labels(self, *args):
         for label_tuple in self.labels:
             if not label_tuple[0].ids[str(label_tuple[1])].text:
@@ -1020,6 +1051,19 @@ class EditScreen(MDScreen):
         else:
             deadline = '-'
 
+        note_widget = None
+        if isinstance(task.note, str):
+            note_widget = MDTextField(
+                text=task.note, line_color_focus=(1, 1, 1, 1), text_color_focus=(1, 1, 1, 1))
+        else:
+            buf1 = cv2.flip(task.note, 0)
+            buf = buf1.tostring()
+            image_texture = Texture.create(size=(task.note.shape[1], task.note.shape[0]), colorfmt='luminance')
+            image_texture.blit_buffer(buf, colorfmt='luminance', bufferfmt='ubyte')
+
+            note_widget = Image(texture=image_texture, pos_hint={'center_x': .5, 'center_y': .5},
+                                size_hint_y=None, height=self.widget_height*1.5)
+
         self.edit_window.add_widget(MDBoxLayout(
             MDBoxLayout(
                 Label(size_hint_x=.2, text='priority:'),
@@ -1038,8 +1082,7 @@ class EditScreen(MDScreen):
                              md_bg_color=(1, 1, 1, .03), on_release=lambda x: self.notification_menu.open(),
                              icon=f"{icon}", icon_size=self.widget_height*.5),
                 size_hint_y=None, height=self.widget_height*.7, orientation='horizontal'),
-            MDTextField(
-                text=task.note, line_color_focus=(1, 1, 1, 1), text_color_focus=(1, 1, 1, 1)),
+            note_widget,
             MDBoxLayout(
                 MDFlatButton(id=f"{task.label_id}", text=task.label_name, size_hint_x=.4,
                              on_release=lambda x: self.label_name_menu.open(), md_bg_color=(1, 1, 1, .03)),
@@ -1105,6 +1148,18 @@ class EditScreen(MDScreen):
     def add_task(self, label_id, label_name):
         self.new_task = Task(label_name, label_id, 0, 1, '', '', '-', date.today().strftime('20%y-%m-%d'), '', -1)
         self.edit_task(self.new_task)
+
+    def add_img_tasks(self, images_list=None, label_id=None, label_name=None):
+        if images_list:
+            self.images_list = images_list
+            self.label_id = label_id
+            self.label_name = label_name
+        if self.images_list:
+            self.new_task = Task(self.label_name, self.label_id, 0, 1, self.images_list[0], '', '-', date.today().strftime('20%y-%m-%d'), '', -1)
+            del self.images_list[0]
+            self.edit_task(self.new_task)
+        else:
+            self.exit()
 
     def show_date_picker(self, text):
         self.date_dialog = MDDatePicker(input_field_text_color_focus="white", helper_text=text,
@@ -1199,12 +1254,17 @@ class EditScreen(MDScreen):
                         SET label_id = {label_id},
                             priority = {self.edit_window.children[0].children[3].children[-2].text},
                             deadline = '{self.edit_window.children[0].children[0].children[0].text}',
-                            note = '{self.edit_window.children[0].children[2].text}',
                             eta = '{self.edit_window.children[0].children[1].children[1].text}',
                             notification = '{self.edit_window.children[0].children[3].children[2].text}',
                             notification_time = '{self.edit_window.children[0].children[3].children[1].text}'
                         WHERE ROWID = {rowid};
                     """)
+        if isinstance(self.edit_window.children[0].children[2], MDTextField):
+            db.execute(f"""
+                            UPDATE Notes
+                            SET note = '{self.edit_window.children[0].children[2].text}'
+                            WHERE ROWID = {rowid};
+                        """)
         database.commit()
         database.close()
 
@@ -1224,31 +1284,41 @@ class EditScreen(MDScreen):
         database = sqlite3.connect('databases/to_do.db')
         db = database.cursor()
 
-        db.execute(f"""
-                INSERT INTO Notes VALUES (
-                                {label_id},
-                                {self.edit_window.children[0].children[3].children[-2].text},
-                                '{self.edit_window.children[0].children[0].children[0].text}',
-                                '{self.edit_window.children[0].children[2].text}',
-                                NULL,
-                                0,
-                                '{self.edit_window.children[0].children[1].children[1].text}',
-                                '{self.edit_window.children[0].children[3].children[2].text}',
-                                '{self.edit_window.children[0].children[3].children[1].text}');
-                            """)
+        note = ''
+        img = None
+        shape = None
+        if isinstance(self.edit_window.children[0].children[2], MDTextField):
+            note = self.edit_window.children[0].children[2].text
+        else:
+            img = sqlite3.Binary(self.new_task.note)
+            shape = np.array(img.shape)
+
+        db.execute("""
+                INSERT INTO Notes (label_id, priority, deadline, note, image, active, eta, notification, 
+                notification_time, shape) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """, (label_id, self.edit_window.children[0].children[3].children[-2].text,
+                      self.edit_window.children[0].children[0].children[0].text, note, img, 0,
+                      self.edit_window.children[0].children[1].children[1].text,
+                      self.edit_window.children[0].children[3].children[2].text,
+                      self.edit_window.children[0].children[3].children[1].text, shape))
+
         database.commit()
-        db.execute(f"""
-                SELECT ROWID FROM Notes WHERE 
-                            label_id = {label_id} AND
-                            priority = {self.edit_window.children[0].children[3].children[-2].text} AND
-                            deadline = '{self.edit_window.children[0].children[0].children[0].text}' AND
-                            note = '{self.edit_window.children[0].children[2].text}' AND
-                            eta = '{self.edit_window.children[0].children[1].children[1].text}' AND
-                            notification = '{self.edit_window.children[0].children[3].children[2].text}' AND
-                            notification_time = '{self.edit_window.children[0].children[3].children[1].text}'
-                            """)
+        db.execute("""
+                SELECT ROWID FROM Notes WHERE
+                            label_id = ? AND
+                            priority = ? AND
+                            deadline = ? AND
+                            note = ? AND
+                            image = ? AND
+                            eta = ? AND
+                            notification = ? AND
+                            notification_time = ?
+                            """, (label_id, self.edit_window.children[0].children[3].children[-2].text,
+                      self.edit_window.children[0].children[0].children[0].text, note, img,
+                      self.edit_window.children[0].children[1].children[1].text,
+                      self.edit_window.children[0].children[3].children[2].text,
+                      self.edit_window.children[0].children[3].children[1].text,))
         rowid = int(db.fetchone()[0])
-        database.close()
 
         self.new_task.rowid = rowid
         self.parent.parent.ids.main_screen.add_task(self.new_task)
@@ -1285,13 +1355,17 @@ class EditScreen(MDScreen):
             self.info_window = None
 
     def exit(self, *args):
-        self.save_button.unbind(on_release=self.save_tasks)
-        self.save_button.unbind(on_release=self.save_labels)
-        self.save_button.unbind(on_release=self.save_label)
-        self.parent.current = 'screen'
         self.edit_window.clear_widgets()
         self.window.height = Window.size[0] * .15
         self.window.size_hint_x = .8
+
+        if self.images_list:
+            self.add_img_tasks()
+        else:
+            self.save_button.unbind(on_release=self.save_tasks)
+            self.save_button.unbind(on_release=self.save_labels)
+            self.save_button.unbind(on_release=self.save_label)
+            self.parent.current = 'screen'
 
 
 class TrashCanView(MDBoxLayout):
@@ -1304,13 +1378,21 @@ class TrashCanView(MDBoxLayout):
 
         database = sqlite3.connect('databases/to_do.db')
         db = database.cursor()
-        db.execute("""SELECT priority, deadline, note, eta, notification, notification_time, deleted_date, ROWID, label_id
+        db.execute("""SELECT priority, deadline, note, eta, notification, notification_time, deleted_date, ROWID, 
+             label_id, image, shape
              FROM Trash 
              ORDER BY deleted_date""")
         items = db.fetchall()
 
-        for i in items:
-            self.tasks.append(Task(None, i[8], i[6], i[0], i[2], i[4], i[3], i[1], i[5], i[7]))
+        for i in items: # 10
+            if i[10] is None:
+                self.tasks.append(Task(None, i[8], i[6], i[0], i[2], i[4], i[3], i[1], i[5], i[7]))
+            else:
+                shape = np.frombuffer(i[10], dtype=int)
+                img = np.frombuffer(i[9], dtype=np.uint8)
+                img.shape = shape
+                self.tasks.append(Task(None, i[8], i[6], i[0], img, i[4], i[3], i[1], i[5], i[7]))
+
             self.add_widget(self.tasks[-1])
 
         database.close()
@@ -1322,31 +1404,20 @@ class TrashCanView(MDBoxLayout):
 
 class CameraLayout(MDFloatLayout):
     def build(self, rowid, label_name):
+        self.rowid = rowid
+        self.label_name = label_name
         self.md_bg_color = (0, 0, 0, 1)
         # self.camera = TaskCamera(play=True)
         # self.add_widget(self.camera)
         icon_size = Window.size[0]/8
         self.add_widget(MDIconButton(pos_hint={'center_x': .5}, icon='camera-outline', size_hint=(None, None),
-                               on_release=lambda x=rowid, y=label_name: self.take_photo(x, y), icon_size=icon_size,
+                               on_release=lambda x: self.take_photo(), icon_size=icon_size,
                                md_bg_color=(32/255, 3/255, 252/255, 1)))
 
-    def take_photo(self, rowid, label_name):
-        # self.camera.export_to_png(f"images/task_image.png")
+    def take_photo(self):
+        # self.camera.export_to_png(f"images/task_image2.png")
         self.clear_widgets()
 
-        image1 = cv2.imread('images/phone_1.jpg')
-        img = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
-        nr = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-        image_bin = np.where(img < nr[0], 0, 1)
-
-        # plt.imshow(image_bin, 'gray')
-        # plt.axis('off')
-        # plt.show()
-
-        # cv2.imwrite('images/phone_gray.jpg', img)
-
-        #self.edit_grid = Image(source="images/phone_gray.jpg",)
 
         self.edit_grid = EditPhoto(md_bg_color=(1,1,1,.1), size_hint=(1, .8), pos_hint={'center_x': .5, 'center_y': .5})
         self.add_widget(self.edit_grid)
@@ -1354,10 +1425,29 @@ class CameraLayout(MDFloatLayout):
         self.add_widget(MDBoxLayout(
             MDFlatButton(text='CANCEL', on_release=lambda x: self.exit(), size_hint_min=(None, None), size_hint=(.5, 1),
                          font_size=Window.size[1]*.03),
-            MDFlatButton(text='SAVE', on_release=lambda x: self.exit(), size_hint_min=(None, None), size_hint=(.5, 1),
+            MDFlatButton(text='SAVE', on_release=self.save_cut, size_hint_min=(None, None), size_hint=(.5, 1),
                         font_size=Window.size[1] * .03),
             orientation='horizontal', size_hint=(1, .1)
         ))
+
+    def save_cut(self, *args):
+        self.children[0].children[0].unbind(on_release=self.save_cut)
+        self.children[0].children[0].bind(on_release=self.save_all)
+
+        self.add_widget(MDBoxLayout(
+            MDIconButton(icon='minus', on_release=lambda x: self.edit_grid.remove_horizontal(),
+                         size_hint_min=(None, None), size_hint=(.5, 1), icon_size=Window.size[1]*.06),
+            MDIconButton(icon='plus', on_release=lambda x: self.edit_grid.add_horizontal(),
+                         size_hint_min=(None, None), size_hint=(.5, 1), icon_size=Window.size[1] * .06),
+            orientation='horizontal', size_hint=(1, .1), pos_hint={'top': 1}))
+
+        self.edit_grid.save_cut()
+
+    def save_all(self, *args):
+        images = self.edit_grid.save_all()
+        self.clear_widgets()
+        self.parent.parent.parent.ids.screen_manager.current = 'edit_screen'
+        self.parent.parent.parent.ids.edit_screen.add_img_tasks(images, self.rowid, self.label_name)
 
     def exit(self):
         self.clear_widgets()
@@ -1367,83 +1457,247 @@ class CameraLayout(MDFloatLayout):
 class EditPhoto(MDFloatLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.add_photo()
+        self.add_photo('cut')
+        self.max_lines = 15
 
-    def add_photo(self):
-        self.photo = Image(source="images/phone_gray.jpg", size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
-        #self.photo = Image(source="images/task_image2.png", size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
+    def add_photo(self, usage):
+        self.image1 = cv2.imread('images/x_cut.jpg')
+        # plt.imshow(self.image1, 'gray') luminance
+        # plt.axis('off')
+        # plt.show()
+
+        buf1 = cv2.flip(self.image1, 0)
+        buf = buf1.tostring()
+        image_texture = Texture.create(size=(self.image1.shape[1], self.image1.shape[0]), colorfmt='bgr')
+        image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+
+        self.photo = Image(texture=image_texture, size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
+
         self.add_widget(self.photo)
 
-        #image1 = cv2.imread('images/task_image2.png')
-        image1 = cv2.imread('images/phone_gray.jpg')
-        img_ratio = image1.shape[1]/image1.shape[0]
+        img_ratio = self.image1.shape[1]/self.image1.shape[0]
         real_ratio = Window.size[0]/(Window.size[1]*.8)
 
         if img_ratio > real_ratio:
-            self.im_width = Window.size[0]*.9
+            self.im_width = min(Window.size[0]*.9, self.image1.shape[1])
             self.im_height = self.im_width/img_ratio
 
         else:
-            self.im_height = Window.size[1]*.84*.9
+            self.im_height = min(Window.size[1]*.8*.9, self.image1.shape[0])
             self.im_width = self.im_height * img_ratio
 
-        self.x0 = Window.size[0]*.05 - 3
-        self.xmax = self.x0+self.im_width
+        self.x0 = (Window.size[0]/2) - (self.im_width/2)
+        self.xmax = (Window.size[0] / 2) + (self.im_width / 2)
 
-        self.y0 = (Window.size[1]/2) - (self.im_height/2) - 3
-        self.ymax = (Window.size[1]/2) + (self.im_height/2) - 3
+        self.y0 = (Window.size[1]/2) - (self.im_height/2)
+        self.ymax = (Window.size[1]/2) + (self.im_height/2)
 
-        self.add_widget(CutLine('horizontal', self.im_width, y=self.y0))
-        self.add_widget(CutLine('horizontal', self.im_width, y=self.ymax))
-        self.add_widget(CutLine('vertical', self.im_height, x=self.x0))
-        self.add_widget(CutLine('vertical', self.im_height, x=self.xmax))
+        self.line_idx = None
 
-    def edit_horizontal(self):
-        pass
+        if usage == 'cut':
+            self.lines_vertical()
+        elif usage == 'divide':
+            self.lines_horizontal()
+
+    def lines_horizontal(self):
+        img = cv2.cvtColor(self.image1, cv2.COLOR_BGR2GRAY)
+
+        # plt.imshow(image_bin, 'gray')
+        # plt.axis('off')
+        # plt.show()
+
+        (h, w) = img.shape[:2]
+        width = 1000
+        r = width / float(w)
+        dim = (width, int(h * r))
+        img = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
+        nr = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        image_bin = np.where(img < nr[0], 0, 1)
+
+        ratio_break = []
+        first_white = -1
+        for curr_line in range(image_bin.shape[0]):
+            for col in range(image_bin.shape[1]):
+                if image_bin[curr_line][col] == 0:  # if black pixel
+                    if first_white > 0:
+                        curr_ratio = ((curr_line - first_white) / 2 + first_white) / image_bin.shape[0]
+                        if ratio_break == [] or (curr_ratio - ratio_break[-1] > .05):
+                            ratio_break.append(curr_ratio)
+                        first_white = -1
+                    break
+            else:
+                if first_white == -1:
+                    first_white = curr_line
+
+        for ratio in ratio_break:
+            self.add_horizontal(ratio)
+
+    def add_horizontal(self, ratio=1):
+        if len(self.lines) < self.max_lines:
+            y = self.ymax - ((self.ymax-self.y0)*ratio)
+            self.lines.append(CutLine('horizontal', self.im_width, y=y))
+            self.add_widget(self.lines[-1])
+
+    def remove_horizontal(self):
+        if self.lines:
+            self.remove_widget(self.lines[-1])
+            del self.lines[-1]
+
+    def lines_vertical(self):
+        self.lines = [CutLine('vertical', self.im_height, x=self.x0),
+                      CutLine('vertical', self.im_height, x=self.xmax)]
+        self.add_widget(self.lines[0])
+        self.add_widget(self.lines[1])
+
+    def save_cut(self):
+        ratio_x = []
+        for line in self.lines:
+            ratio_x.append((line.x - self.x0) / self.im_width)
+        img_cut = self.image1[0:int(self.image1.shape[0]), int(self.image1.shape[1] * ratio_x[0]):int(self.image1.shape[1] * ratio_x[1])]
+        cv2.imwrite('images/x_cut.jpg', img_cut)
+
+        self.clear_widgets()
+        self.image1 = None
+        self.lines = []
+        self.add_photo('divide')
+
+    def save_all(self):
+        task_images = []
+        prev_ratio = 0
+        self.image1 = cv2.cvtColor(self.image1, cv2.COLOR_BGR2GRAY)
+
+        (h, w) = self.image1.shape[:2]
+        width = 1000
+        r = width / float(w)
+        dim = (width, int(h * r))
+        self.image1 = cv2.resize(self.image1, dim, interpolation=cv2.INTER_AREA)
+
+        nr = cv2.threshold(self.image1, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        for row in range(self.image1.shape[0]):
+            for col in range(self.image1.shape[1]):
+                if self.image1[row][col] > nr[0]:
+                    self.image1[row][col] = 0
+                else:
+                    self.image1[row][col] = 255
+
+        for line in self.lines:
+            curr_ratio = (self.ymax - line.y) / self.im_height
+            img_cut = self.image1[int(self.image1.shape[0] * prev_ratio):int(self.image1.shape[0] * curr_ratio),  \
+                                                                                                0:int(self.image1.shape[1])]
+            task_images.append(img_cut)
+            prev_ratio = curr_ratio
+
+        img_cut = self.image1[int(self.image1.shape[0] * prev_ratio):self.image1.shape[0], 0:int(self.image1.shape[1])]
+        task_images.append(img_cut)
+
+        return task_images
+
+    def on_touch_down(self, touch):
+        for i in range(len(self.lines)):
+            if (self.lines[i].x-self.lines[i].w_size[0]) <= touch.x <= self.lines[i].x+self.lines[i].w_size[0] \
+                    and (self.lines[i].y-self.lines[i].w_size[1]) <= touch.y <= self.lines[i].y+self.lines[i].w_size[1]:
+                self.line_idx = i
+
+    def on_touch_up(self, touch):
+        self.line_idx = None
+
+    def on_touch_move(self, touch):
+        if self.line_idx is not None:
+            line = self.lines[self.line_idx]
+            if line.orientation == 'vertical':
+                if touch.x > self.xmax:
+                    touch.x = self.xmax
+                elif touch.x < self.x0:
+                    touch.x = self.x0
+                line.x = touch.x
+                line.update_pos(touch.x)
+
+                if self.line_idx > 0 and self.lines[self.line_idx-1].x > line.x:
+                    self.lines[self.line_idx], self.lines[self.line_idx - 1] = self.lines[self.line_idx - 1], \
+                                                                             self.lines[self.line_idx]
+                    self.line_idx -= 1
+                elif self.line_idx < len(self.lines)-1 and self.lines[self.line_idx+1].x < line.x:
+                    self.lines[self.line_idx], self.lines[self.line_idx + 1] = self.lines[self.line_idx + 1], \
+                                                                               self.lines[self.line_idx]
+                    self.line_idx += 1
+            else:
+                if touch.y > self.ymax:
+                    touch.y = self.ymax
+                elif touch.y < self.y0:
+                    touch.y = self.y0
+                line.y = touch.y
+                line.update_pos(touch.y)
+
+                if self.line_idx > 0 and self.lines[self.line_idx-1].y < line.y:
+                    self.lines[self.line_idx], self.lines[self.line_idx - 1] = self.lines[self.line_idx - 1], \
+                                                                             self.lines[self.line_idx]
+                    self.line_idx -= 1
+                elif self.line_idx < len(self.lines)-1 and self.lines[self.line_idx+1].y > line.y:
+                    self.lines[self.line_idx], self.lines[self.line_idx + 1] = self.lines[self.line_idx + 1], \
+                                                                               self.lines[self.line_idx]
+                    self.line_idx += 1
 
 
-class CutLine(FloatLayout):
+class CutLine(MDBoxLayout):
     def __init__(self, orientation, size, **kwargs):
         super().__init__(**kwargs)
-        line_thickness = 6
+        radius = 3
         size += 36
+        self.orientation = orientation
+        self.circle = [None, None]
         if orientation == 'vertical':
             size += 9
             self.y = Window.size[1]*.1
             if Window.size[1]*.8 > size:
-                self.size = (line_thickness, size)
+                self.w_size = (radius*1.1, size)
                 self.y += (Window.size[1]*.8 - size)/2
             else:
-                self.size = (line_thickness, Window.size[1]*.8)
+                self.w_size = (radius*1.1, Window.size[1]*.8)
 
-            radius = self.width / 2
-            p1 = (self.x+radius, self.y+radius*2)
-            p2 = (self.x+radius, self.y+self.height-(2*radius))
+            self.size = self.w_size
+
+            p1 = (self.x, self.y+radius*2)
+            p2 = (self.x, self.y+self.height-(2*radius))
             with self.canvas:
                 Color(1, 0, 0)
-                Line(points=[p1[0], p1[1]+radius, p2[0], p2[1]-radius], width=radius * .2)
-                Line(circle=(p1[0], p1[1], radius),)
-                Line(circle=(p2[0], p2[1], radius),)
+                self.line = Line(points=[p1[0], p1[1]+radius, p2[0], p2[1]-radius], width=radius * .2)
+                self.circle[0] = Line(circle=(p1[0], p1[1], radius),)
+                self.circle[1] = Line(circle=(p2[0], p2[1], radius),)
 
         else:
             if Window.size[0] > size:
-                self.size = (size, line_thickness)
+                self.w_size = (size, radius*1.1)
                 self.x += (Window.size[0] - size)/2
             else:
-                self.size = (Window.size[0], line_thickness)
+                self.w_size = (Window.size[0], radius*1.1)
 
-            radius = self.height / 2
-            p1 = (self.x+radius*2, self.y+radius)
-            p2 = (self.x+self.width-(2*radius), self.y+radius)
+            self.size = self.w_size
+
+            p1 = (self.x+radius*2, self.y)
+            p2 = (self.x+self.width-(2*radius), self.y)
             with self.canvas:
                 Color(1, 0, 0)
-                Line(points=[p1[0]+radius, p1[1], p2[0]-radius, p2[1]], width=radius * .2)
-                Line(circle=(p1[0], p1[1], radius),)
-                Line(circle=(p2[0], p2[1], radius),)
-        # print(self.pos)
+                self.line = Line(points=[p1[0]+radius, p1[1], p2[0]-radius, p2[1]], width=radius * .2)
+                self.circle[0] = Line(circle=(p1[0], p1[1], radius),)
+                self.circle[1] = Line(circle=(p2[0], p2[1], radius),)
 
-    def get_position(self):
-        return 1
+    def update_pos(self, pos):
+        radius = 3
+        if self.orientation == 'vertical':
+            self.line.points = (pos, self.line.points[1], pos, self.line.points[3])
+            for circle in self.circle:
+                circle.circle = (pos, circle.circle[1], circle.circle[2])
+        else:
+            self.line.points = (self.line.points[0], pos, self.line.points[2], pos)
+            for circle in self.circle:
+                circle.circle = (circle.circle[0], pos, circle.circle[2])
+
+    def get_pos(self):
+        if self.orientation == 'vertical':
+            return self.x + 3
+        else:
+            return self.y + 3
+
 
 # class TaskCamera(Camera):
 #     def __init__(self, **kwargs):

@@ -7,6 +7,8 @@
     NavigationDrawerScreenManager:
         id: screen_manager
         transition: FadeTransition()
+
+        # 1
         MDScreen:
             id: screen
             name: 'screen'
@@ -31,10 +33,12 @@
                     size_hint_y: None
                     height: self.minimum_height
 
+        # 2
         EditScreen:
             id: edit_screen
             name: 'edit_screen'
 
+        # 3
         MDScreen:
             id: camara_screen
             name: 'camera_screen'
@@ -42,6 +46,7 @@
                 id: camera_layout
                 orientation: 'vertical'
 
+        # 4
         MDScreen:
             id: trash_can
             name: 'trash_can'
@@ -73,7 +78,6 @@
         size_hint: .7, 1
         type: "standard"
         close_on_click: True
-        enable_swiping: True
 
         MDScrollView:
             CustomNavigationDrawer: #nic nie dodawaj bo sie usunie
