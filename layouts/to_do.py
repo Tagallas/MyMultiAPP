@@ -213,7 +213,7 @@ class MainView(MDBoxLayout):
                 if i[9] is None:
                     self.tasks.append(Task(label[1], str(label[0]), i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]))
                 else:
-                    pass
+                    continue
                     # shape = np.frombuffer(i[9], dtype=int)  # shape -> array[height, width]
                     # img = np.frombuffer(i[8], dtype=np.uint8)  # img -> array[n, 1]
                     # img.shape = shape
