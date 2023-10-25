@@ -1,6 +1,5 @@
 from kivy import Config
-Config.set('graphics', 'width', '350')
-Config.set('graphics', 'height', '700')
+
 
 from kivy.properties import BooleanProperty
 from kivymd.uix.screen import MDScreen
@@ -97,6 +96,7 @@ class MyApp(MDApp):
         self.theme_cls.primary_hue = '900'
         #primary hue
         return Builder.load_file('My.kv')
+
 
 if __name__ == '__main__':
     MyApp().run()

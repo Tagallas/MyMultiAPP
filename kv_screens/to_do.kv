@@ -34,11 +34,36 @@
                     height: self.minimum_height
 
         # 2
+        MDScreen:
+            id: calendar
+            name: 'calendar'
+            MDTopAppBar:
+                id: app_bar_calendar
+                title: root.items
+                pos_hint: {"top": 1}
+                #elevation: 9
+                md_bg_color: (.1, .2, .6, .85)
+                # specific_text_color: "#4a4939"
+                left_action_items: [["menu", lambda x: nav_drawer.set_state("toggle")], ["arrow-left", lambda x: root.parent.parent.on_press_menu()],]
+                                        #["arrow-left", lambda x: calendar_view.left_arrow()]]
+                right_action_items: [["sort", lambda x: root.sort()],["arrow-right", lambda x: calendar_view.right_arrow()]]
+
+            MDScrollView:
+                size_hint_y: None
+                height: screen.height - app_bar.height
+                pos_hint: {"top": (screen.height - app_bar.height) / screen.height}
+                CalendarView:
+                    id: calendar_view
+                    #orientation: 'vertical'
+                    size_hint_y: None
+                    #height: 0
+
+        # 3
         EditScreen:
             id: edit_screen
             name: 'edit_screen'
 
-        # 3
+        # 4
         MDScreen:
             id: camara_screen
             name: 'camera_screen'
@@ -46,7 +71,7 @@
                 id: camera_layout
                 orientation: 'vertical'
 
-        # 4
+        # 5
         MDScreen:
             id: trash_can
             name: 'trash_can'
@@ -82,6 +107,10 @@
         MDScrollView:
             CustomNavigationDrawer: #nic nie dodawaj bo sie usunie
                 id: md_list_nav_drawer
+
+<CalendarBar>
+    md_bg_color: (.1, .2, .6, .85)
+    orientation: 'horizontal'
 
 <TaskLabel>
     canvas.before:

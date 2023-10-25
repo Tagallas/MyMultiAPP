@@ -18,12 +18,12 @@ from kivy.uix.camera import Camera
 from kivy.graphics.texture import Texture
 
 import cv2
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import numpy as np
 from datetime import date
 from datetime import datetime
 import sqlite3
-import time
+#import time
 
 
 
@@ -213,10 +213,11 @@ class MainView(MDBoxLayout):
                 if i[9] is None:
                     self.tasks.append(Task(label[1], str(label[0]), i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]))
                 else:
-                    shape = np.frombuffer(i[9], dtype=int)
-                    img = np.frombuffer(i[8], dtype=np.uint8)
-                    img.shape = shape
-                    self.tasks.append(Task(label[1], str(label[0]), i[0], i[1], img, i[3], i[4], i[5], i[6], i[7]))
+                    pass
+                    # shape = np.frombuffer(i[9], dtype=int)  # shape -> array[height, width]
+                    # img = np.frombuffer(i[8], dtype=np.uint8)  # img -> array[n, 1]
+                    # img.shape = shape
+                    # self.tasks.append(Task(label[1], str(label[0]), i[0], i[1], img, i[3], i[4], i[5], i[6], i[7]))
                 self.labels[label[0]].add_task(self.tasks[-1])
 
         database.close()
@@ -253,7 +254,7 @@ class MainView(MDBoxLayout):
                     self.labels[it[8]].add_task(self.tasks[i])
 
                 global which_label_global
-                if which_label_global != 'all':
+                if which_label_global not in ('all', 'calendar'):
                     self.labels[it[8]].sort_label_layout()
 
                 database.close()
@@ -294,8 +295,8 @@ class MainView(MDBoxLayout):
         del self.labels[rowid]
 
     def update(self, order_by=None, which_label=None, asc=None):
-        self.clear_widgets()
         global order_by_global, which_label_global, asc_global
+        self.clear_widgets()
         if order_by is None:
             order_by = order_by_global
         if which_label is None:
@@ -548,6 +549,7 @@ class Task(BoxLayout):
         self.notification_time = notification_time
         self.rowid = rowid
         self.active = active
+        self.calendar = 2
 
         self.size_hint_y = None
         self.height = Window.size[1] / 13
@@ -732,9 +734,9 @@ class CustomNavigationDrawer(MDList):
         global TAG
         self.add_widget(MDNavigationDrawerHeader(title=TAG, padding=(0, 0, 0, 10)))  # source można dodać
         self.add_widget(MDNavigationDrawerDivider())
-        self.add_widget(OneLineIconListItem(IconLeftWidget(icon="bell", on_release=self.print, text='bell'),
-                                            text="Notifications", text_color=(.7, .7, .7, .5),
-                                            on_release=self.print, divider=None))
+        self.add_widget(OneLineIconListItem(IconLeftWidget(icon="calendar", on_release=self.print, text='bell'),
+                                            text="Calendar", text_color=(.7, .7, .7, .5),
+                                            on_release=self.calendar_open, divider=None))
         self.add_widget(MDNavigationDrawerDivider())
         self.add_widget(OneLineRightIconListItem(IconRightWidget(icon="playlist-edit", on_release=self.edit_label, text='all',),
                                             text="Labels", on_release=self.press, divider=None))
@@ -754,10 +756,6 @@ class CustomNavigationDrawer(MDList):
                                             text='Add Label', text_color=(.5, .5, .5, .5),
                                             on_release=self.edit_label, divider=None))
         self.add_widget(MDNavigationDrawerDivider())
-        self.add_widget(OneLineIconListItem(IconLeftWidget(icon="help-circle-outline", on_release=self.print, text='help'),
-                                            text='Day Plan', text_color=(.7, .7, .7, .5),
-                                            on_release=self.print, divider=None))
-        self.add_widget(MDNavigationDrawerDivider())
         self.add_widget(OneLineIconListItem(IconLeftWidget(icon="cog", on_release=self.print, text='cog'),
                                             text='Settings', text_color=(.7, .7, .7, .5),
                                             on_release=self.print, divider=None))
@@ -770,6 +768,11 @@ class CustomNavigationDrawer(MDList):
 
     def print(self, butt):
         print(butt.text)
+
+    def calendar_open(self, *args):
+        self.parent.parent.parent.ids.nav_drawer.set_state("close")
+        self.parent.parent.parent.ids.calendar_view.build_daily()
+        self.parent.parent.parent.ids.screen_manager.current = 'calendar'
 
     def trash_open(self, *args):
         self.parent.parent.parent.ids.nav_drawer.set_state("close")
@@ -793,6 +796,127 @@ class CustomNavigationDrawer(MDList):
             self.parent.parent.parent.ids.main_screen.update('category', 'category')
         else:
             self.parent.parent.parent.ids.main_screen.update('priority', int(butt.id), 'asc')
+
+
+class CalendarView(MDRelativeLayout):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build_daily(self, date=date.today().strftime('20%y-%m-%d')):
+        # self.top_bar = CalendarBar(size_hint_y=None, height=self.parent.parent.children[-1].height/2,
+        #                            pos_hint={'top': 1})
+        # self.add_widget(self.top_bar)
+        self.clear_widgets()
+        self.tasks = []
+
+        self.widget_height = Window.size[1]*.07
+        self.height = self.widget_height * 25
+        self.hours_widgets = []
+        for i in range(25):
+            self.hours_widgets.append(MDBoxLayout(
+                Label(text=str(i)+':00', size_hint_x=.1, font_size=Window.size[1]*.02),
+                Label(size_hint_x=.9),
+                #Button(size_hint_x=.9, text=str(i)),
+                size_hint_y=.1, orientation='horizontal', y=(23-i)*self.widget_height))
+            self.add_widget(self.hours_widgets[-1])
+
+        date = '0000-00-00'
+
+        database = sqlite3.connect('databases/to_do.db')
+        db = database.cursor()
+        db.execute(f"""SELECT ROWID, priority, note, image, shape, notification_time, eta, calendar FROM Notes
+                    WHERE active=0 AND notification='{date}' AND calendar IN (1, 2)  ORDER BY priority """)
+        items = db.fetchall()
+        for item in items:
+            note = item[2]
+            if item[3]:
+                shape = np.frombuffer(item[4], dtype=int)
+                note = np.frombuffer(item[3], dtype=np.uint8)
+                note.shape = shape
+            eta = item[6]
+            if item[6] == '-':
+                eta = 60
+            eta = int(eta)/60
+
+            y = self.widget_height*(24-eta-int(item[5][:-3])) - self.widget_height*(int(item[5][-2:])/60)
+            p = self.widget_height * .1
+
+            task = CalendarTask(item[0], item[1], note, None, item[7], y=y, height=self.widget_height*eta, padding=(p, p, p, p))
+            self.tasks.append(task)
+            self.add_widget(task)
+
+        database.close()
+
+    def left_arrow(self):
+        print('left')
+
+    def right_arrow(self):
+        print('right')
+
+    def reload_task(self, rowid):
+        for id, task in enumerate(self.tasks):
+            if task.rowid == rowid:
+                database = sqlite3.connect('databases/to_do.db')
+                db = database.cursor()
+                db.execute(f"""SELECT ROWID, priority, note, image, shape, notification_time, eta, calendar FROM Notes
+                            WHERE ROWID = {rowid} """)
+                item = db.fetchone()
+                note = item[2]
+                if item[3]:
+                    shape = np.frombuffer(item[4], dtype=int)
+                    note = np.frombuffer(item[3], dtype=np.uint8)
+                    note.shape = shape
+                eta = item[6]
+                if item[6] == '-':
+                    eta = 60
+                eta = int(eta) / 60
+
+                y = self.widget_height * (24 - eta - int(item[5][:-3])) - self.widget_height * (
+                            int(item[5][-2:]) / 60)
+                p = self.widget_height * .1
+
+                self.remove_widget(self.tasks[id])
+                self.tasks[id] = CalendarTask(item[0], item[1], note, None, item[7], y=y, height=self.widget_height * eta,
+                                        padding=(p, p, p, p))
+                self.add_widget(self.tasks[id])
+                database.close()
+
+    def edit(self, but):
+        self.parent.parent.parent.parent.ids.screen_manager.current = 'edit_screen'
+        global which_label_global, order_by_global
+        which_label_global = 'calendar'
+        order_by_global = 'calendar'
+        for task in self.parent.parent.parent.parent.ids.main_screen.tasks:
+            if task.rowid == int(but.text):
+                self.parent.parent.parent.parent.ids.edit_screen.edit_task(task)
+                break
+
+
+class CalendarTask(MDBoxLayout):
+    def __init__(self, rowid, priority, note, notification, calendar, **kwargs):
+        super().__init__(**kwargs)
+        self.rowid = rowid
+        self.size_hint = (.9, None)
+        self.x = Window.size[0]*.11
+        self.y += Window.size[1]*.015
+        self.orientation = 'horizontal'
+        global task_colors
+        self.md_bg_color = (task_colors[priority-1][0]*.3, task_colors[priority-1][1]*.3, task_colors[priority-1][2]*.3, 1)
+
+        if isinstance(note, str):
+            self.add_widget(Label(text=note, size_hint_x=.8))
+        else:
+            buf1 = cv2.flip(note, 0)
+            buf = buf1.tostring()
+            image_texture = Texture.create(size=(note.shape[1], note.shape[0]), colorfmt='luminance')
+            image_texture.blit_buffer(buf, colorfmt='luminance', bufferfmt='ubyte')
+            self.add_widget(Image(texture=image_texture, pos_hint={'center_x': .5, 'center_y': .5}, size_hint_x=.8))
+
+        icon = 'bell'
+        if calendar == 1:
+            icon = 'bell-off-outline'
+        self.add_widget(MDIconButton(icon=icon, text=str(rowid), on_release=lambda x=rowid: self.parent.edit(x),
+                                     pos_hint={'center_x': .5, 'center_y': .5}, size_hint_x=.8))
 
 
 class EditScreen(MDScreen):
@@ -1034,8 +1158,14 @@ class EditScreen(MDScreen):
         else:
             eta = "-"
 
-        if task.notification:
+        if task.calendar == 2:
             icon = 'bell'
+            notification = task.notification
+            notification_time = str(task.notification_time)
+            not_disabled = False
+            not_opacity = 1
+        elif task.calendar == 1:
+            icon = 'calendar'
             notification = task.notification
             notification_time = str(task.notification_time)
             not_disabled = False
@@ -1268,8 +1398,12 @@ class EditScreen(MDScreen):
         database.commit()
         database.close()
 
+        global which_label_global
+        if which_label_global != 'calendar':
+            self.parent.parent.ids.main_screen.update()
+        else:
+            self.parent.parent.ids.calendar_view.reload_task(rowid)
         self.parent.parent.ids.main_screen.reload_task(rowid)
-        self.parent.parent.ids.main_screen.update()
         self.exit()
 
     def save_new_task(self):
@@ -1365,7 +1499,11 @@ class EditScreen(MDScreen):
             self.save_button.unbind(on_release=self.save_tasks)
             self.save_button.unbind(on_release=self.save_labels)
             self.save_button.unbind(on_release=self.save_label)
-            self.parent.current = 'screen'
+            global which_label_global
+            if which_label_global == 'calendar':
+                self.parent.current = 'calendar'
+            else:
+                self.parent.current = 'screen'
 
 
 class TrashCanView(MDBoxLayout):
