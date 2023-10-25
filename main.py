@@ -29,7 +29,7 @@ from include.db_create import create_all_db
 Builder.load_file("kv_screens/to_do.kv")
 Builder.load_file("kv_screens/notebook.kv")
 Builder.load_file("kv_screens/gym.kv")
-Builder.load_file("kv_screens/Multi.kv")
+Builder.load_file("kv_screens/multi.kv")
 
 APP = 0
 window_width, window_height = Window.size
@@ -96,7 +96,7 @@ class MyApp(MDApp):
         self.theme_cls.primary_palette = 'Indigo'
         self.theme_cls.primary_hue = '900'
         #primary hue
-        return Builder.load_file('My.kv')
+        return Builder.load_file('my.kv')
 
 
 if __name__ == '__main__':
