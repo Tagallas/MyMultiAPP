@@ -1,6 +1,6 @@
 from kivy import Config
-Config.set('graphics', 'width', '350')
-Config.set('graphics', 'height', '700')
+# Config.set('graphics', 'width', '350')
+# Config.set('graphics', 'height', '700')
 
 from kivy.properties import BooleanProperty
 from kivymd.uix.screen import MDScreen
