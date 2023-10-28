@@ -10,12 +10,12 @@ class Notebook(BoxLayout):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.but = MDRaisedButton(on_release=self.press, size_hint=(None,None), size=(100,100))
+        self.but = MDRaisedButton(on_release=self.press, size_hint=(None, None), size=(100, 100))
         self.add_widget(self.but)
 
     def press(self, but):
-        self.but.size=(1,1)
-        x=1
+        self.but.size = (1, 1)
+        x = 1
         for i in range(1, 1000):
-           x*=i
-        self.but.size=(100,100)
+            x *= i
+        self.but.size = (100, 100)

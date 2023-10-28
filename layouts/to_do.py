@@ -1,56 +1,45 @@
-from kivy.properties import NumericProperty
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.core.window import Window
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.checkbox import CheckBox
 from kivy.uix.image import Image
-from kivy.uix.screenmanager import Screen, NoTransition, FadeTransition, ScreenManager
+# from kivy.uix.screenmanager import Screen, NoTransition, FadeTransition, ScreenManager
 from kivy.clock import Clock
-from kivy.uix.textinput import TextInput
+# from kivy.uix.textinput import TextInput
 from kivy.graphics import Color, Line
-from kivy.uix.scrollview import ScrollView
-from kivy.uix.stacklayout import StackLayout
+# from kivy.uix.scrollview import ScrollView
+# from kivy.uix.stacklayout import StackLayout
 from kivy.uix.textinput import TextInput
-from kivy.uix.camera import Camera
+# from kivy.uix.camera import Camera
 from kivy.graphics.texture import Texture
 
 import cv2
-#import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import numpy as np
 from datetime import date
 from datetime import datetime
 import sqlite3
-#import time
-
-
+# import time
 
 from kivymd.uix.boxlayout import MDBoxLayout
-from kivymd.uix.button import MDRaisedButton, MDIconButton, MDFlatButton, MDRectangleFlatIconButton, \
-    MDFillRoundFlatIconButton, MDRectangleFlatButton, MDTextButton
+from kivymd.uix.button import MDIconButton, MDFlatButton, MDRectangleFlatIconButton
 from kivymd.uix.dialog import MDDialog
-from kivymd.uix.dropdownitem import MDDropDownItem
-from kivymd.uix.fitimage import FitImage
 from kivymd.uix.floatlayout import MDFloatLayout
-from kivymd.uix.label import MDIcon, MDLabel
-from kivymd.uix.list import MDList, OneLineIconListItem, IconLeftWidget, IconRightWidget, OneLineRightIconListItem, \
-    ILeftBody, ILeftBodyTouch
+from kivymd.uix.label import MDIcon
+from kivymd.uix.list import MDList, OneLineIconListItem, IconLeftWidget, IconRightWidget, OneLineRightIconListItem
 from kivymd.uix.menu import MDDropdownMenu
-from kivymd.uix.navigationdrawer import MDNavigationLayout, MDNavigationDrawerMenu, MDNavigationDrawerHeader, \
-    MDNavigationDrawerLabel, MDNavigationDrawer, MDNavigationDrawerDivider, MDNavigationDrawerItem
+from kivymd.uix.navigationdrawer import MDNavigationLayout, MDNavigationDrawerHeader, MDNavigationDrawerDivider
 from kivymd.uix.pickers import MDDatePicker, MDTimePicker
 from kivymd.uix.relativelayout import MDRelativeLayout
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.screenmanager import MDScreenManager
-from kivymd.uix.scrollview import MDScrollView
-from kivymd.uix.selectioncontrol import MDCheckbox
+# from kivymd.uix.scrollview import MDScrollView
 from kivymd.uix.snackbar import Snackbar
-from kivymd.uix.stacklayout import MDStackLayout
+# from kivymd.uix.stacklayout import MDStackLayout
 from kivymd.uix.textfield import MDTextField
-from kivymd.uix.toolbar import MDTopAppBar
-from kivymd.uix.widget import MDWidget
+# from kivymd.uix.toolbar import MDTopAppBar
 
 from layouts.notebook import Notebook
 import include.get_from_db as get_from_db
