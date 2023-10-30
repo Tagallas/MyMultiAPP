@@ -59,7 +59,7 @@ which_label_global = 'category'
 asc_global = 'asc'
 
 
-class ToDoList(MDNavigationLayout):
+class ToDoList(MDScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         global TAG
@@ -1281,14 +1281,12 @@ class EditScreen(MDScreen):
             self.exit()
 
     def show_date_picker(self, text):
-        self.date_dialog = MDDatePicker(input_field_text_color_focus="white", helper_text=text,
-             text_button_color="lightgrey",)
+        self.date_dialog = MDDatePicker(helper_text=text, text_button_color="lightgrey",)
         self.date_dialog.bind(on_save=self.pick_data)
         self.date_dialog.open()
 
-    def show_time_picker(self):
-        self.date_dialog = MDTimePicker(input_field_text_color_focus="white",
-             text_button_color="lightgrey",)
+    def show_time_picker(self): #   input_field_text_color
+        self.date_dialog = MDTimePicker(text_button_color="lightgrey",)
         self.date_dialog.bind(on_save=self.pick_time)
         self.date_dialog.set_time(datetime.now())
         self.date_dialog.open()

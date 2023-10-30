@@ -2,6 +2,8 @@
 #: import FadeTransition kivy.uix.screenmanager.FadeTransition
 #: import MDFadeSlideTransition kivymd.uix.transition.MDFadeSlideTransition
 
+#: set app_bar_height .08
+
 <ToDoList>
     id: to_do_list
     NavigationDrawerScreenManager:
@@ -12,20 +14,22 @@
         MDScreen:
             id: screen
             name: 'screen'
-            MDTopAppBar:
+            CustomTopAppBar:
                 id: app_bar
-                title: root.items
-                pos_hint: {"top": 1}
-                #elevation: 9
-                md_bg_color: (.1, .2, .6, .85)
-                # specific_text_color: "#4a4939"
-                left_action_items: [["menu", lambda x: nav_drawer.set_state("toggle")], ["arrow-left", lambda x: root.parent.parent.on_press_menu()]]
-                right_action_items: [["sort", lambda x: root.sort()],]
+                MDLabel:
+                    md_bg_color: 0, 0, 0, 0
+                    text: root.items
+                    size_hint_x: .6
+                    halign: 'center'
+                MDIconButton:
+                    md_bg_color: 0, 0, 0, 0
+                    icon: 'sort'
+                    size_hint_x: .2
+                    on_release: root.sort()
 
             MDScrollView:
-                size_hint_y: None
-                height: screen.height - app_bar.height
-                pos_hint: {"top": (screen.height - app_bar.height) / screen.height}
+                size_hint_y: 1 - app_bar_height
+                pos_hint: {"top": 1 - app_bar_height}
                 MainView:
                     id: main_screen
                     #pos_hint: {"top": 1}
@@ -37,26 +41,32 @@
         MDScreen:
             id: calendar
             name: 'calendar'
-            MDTopAppBar:
-                id: app_bar_calendar
-                title: root.items
-                pos_hint: {"top": 1}
-                #elevation: 9
-                md_bg_color: (.1, .2, .6, .85)
-                # specific_text_color: "#4a4939"
-                left_action_items: [["menu", lambda x: nav_drawer.set_state("toggle")], ["arrow-left", lambda x: root.parent.parent.on_press_menu()],]
-                                        #["arrow-left", lambda x: calendar_view.left_arrow()]]
-                right_action_items: [["sort", lambda x: root.sort()],["arrow-right", lambda x: calendar_view.right_arrow()]]
+            CustomTopAppBar:
+                id: app_bar_2
+                MDLabel:
+                    md_bg_color: 0, 0, 0, 0
+                    text: root.items
+                    size_hint_x: .6
+                    halign: 'center'
+                MDIconButton:
+                    md_bg_color: 0, 0, 0, 0
+                    icon: 'arrow-right'
+                    size_hint_x: .2
+                    on_release: calendar_view.right_arrow()
+                MDIconButton:
+                    md_bg_color: 0, 0, 0, 0
+                    icon: 'sort'
+                    size_hint_x: .2
+                    on_release: root.sort()
 
             MDScrollView:
-                size_hint_y: None
-                height: screen.height - app_bar.height
-                pos_hint: {"top": (screen.height - app_bar.height) / screen.height}
+                size_hint_y: 1 - app_bar_height
+                pos_hint: {"top": 1 - app_bar_height}
                 CalendarView:
                     id: calendar_view
-                    #orientation: 'vertical'
+                    # orientation: 'vertical'
                     size_hint_y: None
-                    #height: 0
+                    # height: 0
 
         # 3
         EditScreen:
@@ -73,23 +83,25 @@
 
         # 5
         MDScreen:
-            id: trash_can
+            id: 'trash_can'
             name: 'trash_can'
 
-            MDTopAppBar:
+            CustomTopAppBar:
                 id: app_bar_2
-                title: 'Trash Can'
-                pos_hint: {"top": 1}
-                #elevation: 9
-                md_bg_color: (.1, .2, .6, .85)
-                # specific_text_color: "#4a4939"
-                left_action_items: [["menu", lambda x: nav_drawer.set_state("toggle")], ["arrow-left", lambda x: root.parent.parent.on_press_menu()]]
-                right_action_items: [["trash-can-outline", lambda x: root.delete_trash_dialog()],]
+                MDLabel:
+                    md_bg_color: 0, 0, 0, 0
+                    text: 'Trash Can'
+                    size_hint_x: .6
+                    halign: 'center'
+                MDIconButton:
+                    md_bg_color: 0, 0, 0, 0
+                    icon: 'trash-can-outline'
+                    size_hint_x: .2
+                    on_release: root.delete_trash_dialog()
 
             MDScrollView:
-                size_hint_y: None
-                height: screen.height - app_bar.height
-                pos_hint: {"top": (screen.height - app_bar.height) / screen.height}
+                size_hint_y: 1 - app_bar_height
+                pos_hint: {"top": 1 - app_bar_height}
                 TrashCanView:
                     id: trash_can_view
                     orientation: 'vertical'
@@ -127,3 +139,21 @@
             pos: self.pos
             size: self.size
 
+<CustomTopAppBar@MDBoxLayout>:
+    orientation: 'horizontal'
+    pos_hint: {"top": 1}
+    md_bg_color: (.1, .2, .6, .85)
+    size_hint_y: app_bar_height
+    MDLabel:
+        md_bg_color: 0, 0, 0, 0
+        size_hint_x: .03
+    MDIconButton:
+        md_bg_color: 0, 0, 0, 0
+        icon: 'menu'
+        size_hint_x: .1
+        on_release: root.parent.parent.parent.ids.nav_drawer.set_state("toggle")
+    MDIconButton:
+        md_bg_color: 0, 0, 0, 0
+        icon: 'arrow-left'
+        size_hint_x: .1
+        on_release: root.parent.parent.parent.parent.parent.on_press_menu() # root.parent[x3] - classToDoList

@@ -1,6 +1,6 @@
 from kivy.lang import Builder
 from kivy.uix.boxlayout import BoxLayout
-from kivymd.uix.button import MDFillRoundFlatButton
+from kivymd.uix.button import MDIconButton, MDFlatButton, MDRectangleFlatIconButton
 
 from time import sleep
 
@@ -10,7 +10,7 @@ class Notebook(BoxLayout):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.but = MDFillRoundFlatButton(on_release=self.press, size_hint=(None, None), size=(100, 100))
+        self.but = MDRectangleFlatIconButton(on_release=self.press, size_hint=(None, None), size=(100, 100))
         self.add_widget(self.but)
 
     def press(self, but):

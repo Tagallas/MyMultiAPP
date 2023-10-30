@@ -1,5 +1,6 @@
 from kivy import Config
-
+Config.set('graphics', 'width', '350')
+Config.set('graphics', 'height', '700')
 from kivymd.uix.screen import MDScreen
 from kivy.core.window import Window
 from kivy.lang import Builder
@@ -10,7 +11,7 @@ from kivy.uix.screenmanager import FadeTransition
 
 from kivymd.app import MDApp
 from kivymd.uix.screenmanager import ScreenManager
-from kivymd.uix.button import MDFillRoundFlatButton
+from kivymd.uix.button import MDFillRoundFlatButton, MDRaisedButton
 
 # todo zastanów sie które transition
 # from kivymd.uix.transition import MDFadeSlideTransition
@@ -25,8 +26,7 @@ Builder.load_file("kv_screens/notebook.kv")
 Builder.load_file("kv_screens/gym.kv")
 Builder.load_file("kv_screens/multi.kv")
 
-Config.set('graphics', 'width', '350')
-Config.set('graphics', 'height', '700')
+
 
 APP = 0
 window_width, window_height = Window.size
@@ -40,15 +40,15 @@ class MainLayout(StackLayout):
         butt_size = (.5, .2)
         self.padding = window_width * .07
         self.spacing = window_width * .05
-        self.add_widget(MDFillRoundFlatButton(text="TO_DO", font_size=23,
+        self.add_widget(MDRaisedButton(text="TO_DO", font_size=23,
                                        size_hint=butt_size, md_bg_color=(.1, .2, .6, .85),
                                        rounded_button=False, _radius=25,
                                        on_release=self.on_press))
-        self.add_widget(MDFillRoundFlatButton(text="Notebook", font_size=23,
+        self.add_widget(MDRaisedButton(text="Notebook", font_size=23,
                                        size_hint=butt_size, md_bg_color=(.1, .2, .6, .85),
                                        rounded_button=False, _radius=25,
                                        on_release=self.on_press))
-        self.add_widget(MDFillRoundFlatButton(text="GYM", font_size=23,
+        self.add_widget(MDRaisedButton(text="GYM", font_size=23,
                                        size_hint=butt_size, md_bg_color=(.1, .2, .6, .85),
                                        rounded_button=False, _radius=25,
                                        on_release=self.on_press))
