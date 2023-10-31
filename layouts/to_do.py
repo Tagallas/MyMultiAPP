@@ -12,8 +12,9 @@ from kivy.graphics import Color, Line
 # from kivy.uix.scrollview import ScrollView
 # from kivy.uix.stacklayout import StackLayout
 from kivy.uix.textinput import TextInput
-# from kivy.uix.camera import Camera
+from kivy.uix.camera import Camera
 from kivy.graphics.texture import Texture
+
 
 import cv2
 # import matplotlib.pyplot as plt
@@ -1510,19 +1511,20 @@ class CameraLayout(MDFloatLayout):
         self.rowid = rowid
         self.label_name = label_name
         self.md_bg_color = (0, 0, 0, 1)
-        # self.camera = TaskCamera(play=True)
-        # self.add_widget(self.camera)
+        self.camera = TaskCamera(play=True)
+        self.add_widget(self.camera)
         icon_size = Window.size[0]/8
         self.add_widget(MDIconButton(pos_hint={'center_x': .5}, icon='camera-outline', size_hint=(None, None),
                                on_release=lambda x: self.take_photo(), icon_size=icon_size,
                                md_bg_color=(32/255, 3/255, 252/255, 1)))
 
     def take_photo(self):
-        # self.camera.export_to_png(f"images/task_image2.png")
+        self.camera.play = False
+        #self.camera.export_to_png(f"images/task_image2.png")
         self.clear_widgets()
 
-
-        self.edit_grid = EditPhoto(md_bg_color=(1,1,1,.1), size_hint=(1, .8), pos_hint={'center_x': .5, 'center_y': .5})
+        self.edit_grid = EditPhoto(self.camera.texture, md_bg_color=(1,1,1,.1), size_hint=(1, .8),
+                                   pos_hint={'center_x': .5, 'center_y': .5})
         self.add_widget(self.edit_grid)
 
         self.add_widget(MDBoxLayout(
@@ -1558,12 +1560,12 @@ class CameraLayout(MDFloatLayout):
 
 
 class EditPhoto(MDFloatLayout):
-    def __init__(self, **kwargs):
+    def __init__(self, texture, **kwargs):
         super().__init__(**kwargs)
-        self.add_photo('cut')
+        self.add_photo('cut', texture)
         self.max_lines = 15
 
-    def add_photo(self, usage):
+    def add_photo(self, usage, texture):
         self.image1 = cv2.imread('images/x_cut.jpg')
         # plt.imshow(self.image1, 'gray') luminance
         # plt.axis('off')
@@ -1574,7 +1576,9 @@ class EditPhoto(MDFloatLayout):
         image_texture = Texture.create(size=(self.image1.shape[1], self.image1.shape[0]), colorfmt='bgr')
         image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
 
-        self.photo = Image(texture=image_texture, size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
+        #self.image1 = texture
+
+        self.photo = Image(texture=texture, size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
 
         self.add_widget(self.photo)
 
@@ -1802,7 +1806,7 @@ class CutLine(MDBoxLayout):
             return self.y + 3
 
 
-# class TaskCamera(Camera):
-#     def __init__(self, **kwargs):
-#         super().__init__(**kwargs)
-#         self.resolution = (1500, 1500)
+class TaskCamera(Camera):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.resolution = (1500, 1500)
