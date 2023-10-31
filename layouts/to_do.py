@@ -538,7 +538,7 @@ class Task(BoxLayout):
         self.notification_time = notification_time
         self.rowid = rowid
         self.active = active
-        self.calendar = 2
+        self.calendar = 0
 
         self.size_hint_y = None
         self.height = Window.size[1] / 13
@@ -685,18 +685,8 @@ class Task(BoxLayout):
                         self.notification_time, shape))
 
         database.commit()
-        db.execute("""
-                        SELECT ROWID FROM Notes WHERE
-                                    label_id = ? AND
-                                    priority = ? AND
-                                    deadline = ? AND
-                                    note = ? AND
-                                    image = ? AND
-                                    eta = ? AND
-                                    notification = ? AND
-                                    notification_time = ?
-                                    """, (self.label_id, self.priority, self.deadline, note, img, self.eta,
-                                          self.notification, self.notification_time,))
+        db.execute(""" SELECT ROWID, note FROM Notes ORDER BY ROWID DESC """)
+
         rowid = int(db.fetchone()[0])
 
         db.execute(f"SELECT label_name FROM Labels where ROWID = {self.label_id}")
@@ -943,7 +933,7 @@ class EditScreen(MDScreen):
     def edit_label(self, rowid, label_name):
         self.window.height += self.widget_height
         self.edit_window.add_widget(MDBoxLayout(
-                                        MDTextField(id='text_field', text=label_name,
+                                        MDTextField(text=label_name, # id='text_field',
                                             text_color_focus='white', line_color_focus='white',
                                             required=True),
                                         MDIconButton(id=label_name, text=str(rowid), icon='trash-can-outline',
@@ -954,7 +944,7 @@ class EditScreen(MDScreen):
         self.save_button.bind(on_release=self.save_label)
 
     def save_label(self, *args):
-        if self.edit_window.children[0].ids['text_field'].text:
+        if self.edit_window.children[0].children[1].text:
             database = sqlite3.connect('databases/to_do.db')
             db = database.cursor()
 
@@ -962,15 +952,15 @@ class EditScreen(MDScreen):
                             UPDATE Labels
                             SET label_name = {}
                             WHERE ROWID = {};
-                        """.format('"'+self.edit_window.children[0].ids['text_field'].text+'"', self.edit_window.children[0].id))
+                        """.format('"'+self.edit_window.children[0].children[1].text+'"', self.edit_window.children[0].id))
             database.commit()
             database.close()
 
             self.parent.parent.ids.md_list_nav_drawer.reload()
             self.parent.parent.ids.main_screen.reload_labels(int(self.edit_window.children[0].id),
-                                                            self.edit_window.children[0].ids['text_field'].text)
+                                                            self.edit_window.children[0].children[1].text)
             self.exit()
-            #self.save_button.unbind(on_release=self.save_label)
+            self.save_button.unbind(on_release=self.save_label)
         else:
             if not self.info_window:
                 self.info_window = Snackbar(text='Label name can not be empty!')
@@ -980,7 +970,7 @@ class EditScreen(MDScreen):
     # add/remove label
     def add_label(self):
         self.window.height += self.widget_height
-        self.edit_window.add_widget(MDTextField(id='text_field', text="", hint_text='Label Name:',
+        self.edit_window.add_widget(MDTextField(text="", hint_text='Label Name:',
                                     hint_text_color_focus="white", text_color_focus='white',
                                     line_color_focus='white', required=True),)
         self.save_button.text = 'ADD'
@@ -1055,7 +1045,7 @@ class EditScreen(MDScreen):
                         MDIconButton(icon='dots-horizontal', size_hint_x=None, width=self.height * 1.5, text=str(item[1]),
                                      pos_hint={"center_x": .5, "center_y": .8}, ripple_alpha=0, on_press=self.dots_press,
                                      id='icon_but'),
-                        MDTextField(id=str(item[1]), text=item[0], text_color_focus='white', line_color_focus='white', required=True),
+                        MDTextField(text=item[0], text_color_focus='white', line_color_focus='white', required=True),
                         MDIconButton(id=item[0], text=str(item[1]), icon='trash-can-outline',
                                       size_hint_x=.1, pos_hint={"center_x": .5, "center_y": .75},
                                       on_release=self.remove_dialog, icon_size=self.widget_height*.5),
@@ -1109,7 +1099,7 @@ class EditScreen(MDScreen):
 
     def save_labels(self, *args):
         for label_tuple in self.labels:
-            if not label_tuple[0].ids[str(label_tuple[1])].text:
+            if not label_tuple[0].children[1].text:
                 if not self.info_window:
                     self.info_window = Snackbar(text='Label name can not be empty!')
                 self.info_window.open()
@@ -1123,10 +1113,10 @@ class EditScreen(MDScreen):
                         UPDATE Labels
                         SET priority = {}, label_name = {}
                         WHERE ROWID = {};
-                    """.format(len(self.labels)-idx, '"'+label_tuple[0].ids[str(label_tuple[1])].text+'"', label_tuple[1]))
+                    """.format(len(self.labels)-idx, '"'+label_tuple[0].children[1].text+'"', label_tuple[1]))
             database.commit()
             self.parent.parent.ids.main_screen.reload_labels(int(label_tuple[1]),
-                                                             label_tuple[0].ids[str(label_tuple[1])].text)
+                                                             label_tuple[0].children[1].text)
         database.close()
 
         self.labels = []
@@ -1147,12 +1137,12 @@ class EditScreen(MDScreen):
         else:
             eta = "-"
 
-        if task.calendar == 2:
-            icon = 'bell'
-            notification = task.notification
-            notification_time = str(task.notification_time)
-            not_disabled = False
-            not_opacity = 1
+        if task.calendar == 0:
+            icon = 'bell-off-outline'
+            notification = ""
+            notification_time = ''
+            not_disabled = True
+            not_opacity = 0
         elif task.calendar == 1:
             icon = 'calendar'
             notification = task.notification
@@ -1160,11 +1150,12 @@ class EditScreen(MDScreen):
             not_disabled = False
             not_opacity = 1
         else:
-            icon = 'bell-off-outline'
-            notification = ""
-            notification_time = ''
-            not_disabled = True
-            not_opacity = 0
+            icon = 'bell'
+            notification = task.notification
+            notification_time = str(task.notification_time)
+            not_disabled = False
+            not_opacity = 1
+
         if task.deadline:
             deadline = task.deadline
         else:
@@ -1415,7 +1406,7 @@ class EditScreen(MDScreen):
             shape = np.array(img.shape)
 
         db.execute("""
-                INSERT INTO Notes (label_id, priority, deadline, note, image, active, eta, notification, 
+                INSERT INTO Notes (label_id, priority, deadline, note, image, active, eta, notification,
                 notification_time, shape) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """, (label_id, self.edit_window.children[0].children[3].children[-2].text,
                       self.edit_window.children[0].children[0].children[0].text, note, img, 0,
@@ -1424,21 +1415,8 @@ class EditScreen(MDScreen):
                       self.edit_window.children[0].children[3].children[1].text, shape))
 
         database.commit()
-        db.execute("""
-                SELECT ROWID FROM Notes WHERE
-                            label_id = ? AND
-                            priority = ? AND
-                            deadline = ? AND
-                            note = ? AND
-                            image = ? AND
-                            eta = ? AND
-                            notification = ? AND
-                            notification_time = ?
-                            """, (label_id, self.edit_window.children[0].children[3].children[-2].text,
-                      self.edit_window.children[0].children[0].children[0].text, note, img,
-                      self.edit_window.children[0].children[1].children[1].text,
-                      self.edit_window.children[0].children[3].children[2].text,
-                      self.edit_window.children[0].children[3].children[1].text,))
+
+        db.execute("""SELECT ROWID, note FROM Notes ORDER BY ROWID DESC """)
         rowid = int(db.fetchone()[0])
 
         self.new_task.rowid = rowid
