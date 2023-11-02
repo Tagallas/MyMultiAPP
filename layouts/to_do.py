@@ -1511,12 +1511,12 @@ class CameraLayout(MDFloatLayout):
         self.rowid = rowid
         self.label_name = label_name
         self.md_bg_color = (0, 0, 0, 1)
-        self.camera = TaskCamera(play=True)
-        self.add_widget(self.camera)
         icon_size = Window.size[0]/8
         self.add_widget(MDIconButton(pos_hint={'center_x': .5}, icon='camera-outline', size_hint=(None, None),
                                on_release=lambda x: self.take_photo(), icon_size=icon_size,
                                md_bg_color=(32/255, 3/255, 252/255, 1)))
+        self.camera = TaskCamera(play=True)
+        self.add_widget(self.camera)
 
     def take_photo(self):
         self.camera.play = False
@@ -1577,13 +1577,14 @@ class EditPhoto(MDFloatLayout):
         # image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
 
         self.image1 = texture
-        print(texture.size)
 
-        self.photo = Image(texture=texture, size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
+        #print(texture.size)
+
+        self.photo = TaskImage(texture=texture, size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
 
         self.add_widget(self.photo)
 
-        img_ratio = self.image1.size[0]/self.image1.size[1]  # width / height
+        img_ratio = self.image1.size[0]/self.image1.size[1]  #  / height / width
         real_ratio = Window.size[0]/(Window.size[1]*.8)
 
         if img_ratio > real_ratio:
@@ -1811,10 +1812,21 @@ class CutLine(MDBoxLayout):
 class TaskCamera(Camera):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        print(self.center)
+        self.index = 0
         with self.canvas.before:
             PushMatrix()
             Rotate(angle=(-90), origin=[Window.size[0]/2, Window.size[1]/2])
         with self.canvas.after:
             PopMatrix()
+
         #self.resolution = Window.size
+
+
+class TaskImage(Image):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        with self.canvas.before:
+            PushMatrix()
+            Rotate(angle=(-90), origin=[Window.size[0]/2, Window.size[1]/2])
+        with self.canvas.after:
+            PopMatrix()
