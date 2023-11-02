@@ -14,7 +14,7 @@ from kivy.graphics import Color, Line
 from kivy.uix.textinput import TextInput
 from kivy.uix.camera import Camera
 from kivy.graphics.texture import Texture
-
+from kivy.graphics.context_instructions import PushMatrix, Rotate, PopMatrix
 
 import cv2
 # import matplotlib.pyplot as plt
@@ -1565,32 +1565,33 @@ class EditPhoto(MDFloatLayout):
         self.add_photo('cut', texture)
         self.max_lines = 15
 
-    def add_photo(self, usage, texture):
-        self.image1 = cv2.imread('images/x_cut.jpg')
-        # plt.imshow(self.image1, 'gray') luminance
-        # plt.axis('off')
-        # plt.show()
+    def add_photo(self, usage, texture):  # texture.size = width / height
+        # self.image1 = cv2.imread('images/x_cut.jpg')
+        # # plt.imshow(self.image1, 'gray') luminance
+        # # plt.axis('off')
+        # # plt.show()
+        #
+        # buf1 = cv2.flip(self.image1, 0)
+        # buf = buf1.tostring()
+        # image_texture = Texture.create(size=(self.image1.shape[1], self.image1.shape[0]), colorfmt='bgr')
+        # image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
 
-        buf1 = cv2.flip(self.image1, 0)
-        buf = buf1.tostring()
-        image_texture = Texture.create(size=(self.image1.shape[1], self.image1.shape[0]), colorfmt='bgr')
-        image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
-
-        #self.image1 = texture
+        self.image1 = texture
+        print(texture.size)
 
         self.photo = Image(texture=texture, size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
 
         self.add_widget(self.photo)
 
-        img_ratio = self.image1.shape[1]/self.image1.shape[0]
+        img_ratio = self.image1.size[0]/self.image1.size[1]  # width / height
         real_ratio = Window.size[0]/(Window.size[1]*.8)
 
         if img_ratio > real_ratio:
-            self.im_width = min(Window.size[0]*.9, self.image1.shape[1])
+            self.im_width = min(Window.size[0]*.9, self.image1.size[0])
             self.im_height = self.im_width/img_ratio
 
         else:
-            self.im_height = min(Window.size[1]*.8*.9, self.image1.shape[0])
+            self.im_height = min(Window.size[1]*.8*.9, self.image1.size[1])
             self.im_width = self.im_height * img_ratio
 
         self.x0 = (Window.size[0]/2) - (self.im_width/2)
@@ -1613,7 +1614,7 @@ class EditPhoto(MDFloatLayout):
         # plt.axis('off')
         # plt.show()
 
-        (h, w) = img.shape[:2]
+        (h, w) = img.size[:2]
         width = 1000
         r = width / float(w)
         dim = (width, int(h * r))
@@ -1623,8 +1624,8 @@ class EditPhoto(MDFloatLayout):
 
         ratio_break = []
         first_white = -1
-        for curr_line in range(image_bin.shape[0]):
-            for col in range(image_bin.shape[1]):
+        for curr_line in range(image_bin.size[0]):
+            for col in range(image_bin.size[1]):
                 if image_bin[curr_line][col] == 0:  # if black pixel
                     if first_white > 0:
                         curr_ratio = ((curr_line - first_white) / 2 + first_white) / image_bin.shape[0]
@@ -1660,7 +1661,8 @@ class EditPhoto(MDFloatLayout):
         ratio_x = []
         for line in self.lines:
             ratio_x.append((line.x - self.x0) / self.im_width)
-        img_cut = self.image1[0:int(self.image1.shape[0]), int(self.image1.shape[1] * ratio_x[0]):int(self.image1.shape[1] * ratio_x[1])]
+        # TODO: first cut with texture
+        img_cut = self.image1[0:int(self.image1.size[0]), int(self.image1.size[1] * ratio_x[0]):int(self.image1.size[1] * ratio_x[1])]
         cv2.imwrite('images/x_cut.jpg', img_cut)
 
         self.clear_widgets()
@@ -1809,4 +1811,10 @@ class CutLine(MDBoxLayout):
 class TaskCamera(Camera):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.resolution = (1500, 1500)
+        print(self.center)
+        with self.canvas.before:
+            PushMatrix()
+            Rotate(angle=(-90), origin=[Window.size[0]/2, Window.size[1]/2])
+        with self.canvas.after:
+            PopMatrix()
+        #self.resolution = Window.size
