@@ -1577,10 +1577,12 @@ class EditPhoto(MDFloatLayout):
         # image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
 
         self.image1 = texture
-
+        self.image1 = rotate_image_right(self.image1)
         #print(texture.size)
 
-        self.photo = TaskImage(texture=texture, size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
+        self.photo = Image(texture=self.image1, size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
+
+        print(self.image1)
 
         self.add_widget(self.photo)
 
@@ -1827,6 +1829,29 @@ class TaskImage(Image):
         super().__init__(**kwargs)
         with self.canvas.before:
             PushMatrix()
-            Rotate(angle=(-90), origin=[Window.size[0]/2, Window.size[1]/2])
+            Rotate(angle=0, origin=[Window.size[0]/2, Window.size[1]/2])
         with self.canvas.after:
             PopMatrix()
+
+
+def rotate_image_right(texture):
+    text = False
+    image = texture
+    if isinstance(texture, Texture):
+        text = True
+
+        image = np.frombuffer(texture.pixels, dtype=int)
+        image.shape = (texture.size[1], texture.size[0])
+
+    image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+
+    if text:
+        buf1 = cv2.flip(image, 0)
+        buf = buf1.tostring()
+        image_texture = Texture.create(size=(texture.size[1], texture.size[0]))
+        image_texture.blit_buffer(buf, colorfmt='rgba', bufferfmt='ubyte')
+        image = image_texture
+
+    return image
+
+
