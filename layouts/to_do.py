@@ -1,3 +1,5 @@
+import os
+
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.core.window import Window
@@ -1520,7 +1522,7 @@ class CameraLayout(MDFloatLayout):
 
     def take_photo(self):
         self.camera.play = False
-        #self.camera.export_to_png(f"images/task_image2.png")
+        #self.camera.export_to_png(f"images/task_image.png")
         self.clear_widgets()
 
         self.edit_grid = EditPhoto(self.camera.texture, md_bg_color=(1,1,1,.1), size_hint=(1, .8),
@@ -1564,12 +1566,13 @@ class EditPhoto(MDFloatLayout):
         super().__init__(**kwargs)
         self.add_photo('cut', texture)
         self.max_lines = 15
+        self.lines_addition = 50
 
     def add_photo(self, usage, texture):  # texture.size = width / height
-        # self.image1 = cv2.imread('images/x_cut.jpg')
-        # # plt.imshow(self.image1, 'gray') luminance
-        # # plt.axis('off')
-        # # plt.show()
+        self.image1 = cv2.imread('images/x_cut.jpg')
+        # plt.imshow(self.image1, 'gray') luminance
+        # plt.axis('off')
+        # plt.show()
         #
         # buf1 = cv2.flip(self.image1, 0)
         # buf = buf1.tostring()
@@ -1577,7 +1580,8 @@ class EditPhoto(MDFloatLayout):
         # image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
 
         self.image1 = texture
-        self.image1 = rotate_image_right(self.image1)
+        if usage == 'cut':
+            self.image1 = rotate_image_right(self.image1)
         #print(texture.size)
 
         self.photo = Image(texture=self.image1, size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
@@ -1586,7 +1590,7 @@ class EditPhoto(MDFloatLayout):
 
         self.add_widget(self.photo)
 
-        img_ratio = self.image1.size[0]/self.image1.size[1]  #  / height / width
+        img_ratio = self.image1.size[0]/self.image1.size[1]  # width / height
         real_ratio = Window.size[0]/(Window.size[1]*.8)
 
         if img_ratio > real_ratio:
@@ -1611,6 +1615,7 @@ class EditPhoto(MDFloatLayout):
             self.lines_horizontal()
 
     def lines_horizontal(self):
+        return
         img = cv2.cvtColor(self.image1, cv2.COLOR_BGR2GRAY)
 
         # plt.imshow(image_bin, 'gray')
@@ -1664,14 +1669,16 @@ class EditPhoto(MDFloatLayout):
         ratio_x = []
         for line in self.lines:
             ratio_x.append((line.x - self.x0) / self.im_width)
-        # TODO: first cut with texture
-        img_cut = self.image1[0:int(self.image1.size[0]), int(self.image1.size[1] * ratio_x[0]):int(self.image1.size[1] * ratio_x[1])]
-        cv2.imwrite('images/x_cut.jpg', img_cut)
+
+        image = texture_to_ndarray(self.image1)
+        image = image[0:int(self.image1.size[0]), int(self.image1.size[1] * ratio_x[0]):int(self.image1.size[1] * ratio_x[1])]
+        #cv2.imwrite('images/cut_vertical.png', image)
+        texture_cut = ndarray_to_texture(image)
 
         self.clear_widgets()
         self.image1 = None
         self.lines = []
-        self.add_photo('divide')
+        self.add_photo('divide', texture_cut)
 
     def save_all(self):
         task_images = []
@@ -1753,7 +1760,8 @@ class EditPhoto(MDFloatLayout):
 class CutLine(MDBoxLayout):
     def __init__(self, orientation, size, **kwargs):
         super().__init__(**kwargs)
-        radius = 3
+        # radius = 3
+        radius = 5
         size += 36
         self.orientation = orientation
         self.circle = [None, None]
@@ -1794,7 +1802,7 @@ class CutLine(MDBoxLayout):
                 self.circle[1] = Line(circle=(p2[0], p2[1], radius),)
 
     def update_pos(self, pos):
-        radius = 3
+        radius = 5
         if self.orientation == 'vertical':
             self.line.points = (pos, self.line.points[1], pos, self.line.points[3])
             for circle in self.circle:
@@ -1824,34 +1832,59 @@ class TaskCamera(Camera):
         #self.resolution = Window.size
 
 
-class TaskImage(Image):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        with self.canvas.before:
-            PushMatrix()
-            Rotate(angle=0, origin=[Window.size[0]/2, Window.size[1]/2])
-        with self.canvas.after:
-            PopMatrix()
-
-
 def rotate_image_right(texture):
-    text = False
+    is_texture = False
     image = texture
+    size = texture.size
     if isinstance(texture, Texture):
-        text = True
+        is_texture = True
 
         image = np.frombuffer(texture.pixels, dtype=int)
-        image.shape = (texture.size[1], texture.size[0])
+
+        image = image.reshape(int(texture.size[1]), texture.size[0])
+        print(texture.size)
+        print(image.shape)
+        image = image[0:int(image.shape[0]), 0:int(image.shape[1])]
+        print(image.shape)
+        size = (int(image.shape[1]), int(image.shape[0]))
+        print(size)
+        #tel
+        # image = np.frombuffer(texture.pixels, dtype=int)
+        # image = image.reshape(int(texture.size[1]/2), texture.size[0])
+        # image = image[0:image.shape[0], 0:int(image.shape[1]/2)]
+        # size = (int(image.shape[1]/2), int(image.shape[0]/2))
+
+
+        # (h, w) = image.shape[:2]
+        # dim = (480, 640)
+        # image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
 
     image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
 
-    if text:
-        buf1 = cv2.flip(image, 0)
-        buf = buf1.tostring()
-        image_texture = Texture.create(size=(texture.size[1], texture.size[0]))
-        image_texture.blit_buffer(buf, colorfmt='rgba', bufferfmt='ubyte')
-        image = image_texture
+    if is_texture:
+        image = ndarray_to_texture(image)
+        image.flip_vertical()
+
+        # buf1 = cv2.flip(image, 0)
+        # buf = buf1.tostring()
+        # image_texture = Texture.create(size=size)
+        # image_texture.blit_buffer(buf, colorfmt='rgba', bufferfmt='ubyte')
+        # image = image_texture
 
     return image
 
 
+def texture_to_ndarray(texture):
+    image = np.frombuffer(texture.pixels, dtype=int)
+    image = image.reshape(texture.size[1], texture.size[0])
+
+    return image
+
+
+def ndarray_to_texture(image):
+    buf1 = cv2.flip(image, 0)
+    buf = buf1.tostring()
+    image_texture = Texture.create(size=(image.shape[1], image.shape[0]))
+    image_texture.blit_buffer(buf, colorfmt='rgba', bufferfmt='ubyte')
+
+    return image_texture
