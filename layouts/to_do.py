@@ -205,11 +205,11 @@ class MainView(MDBoxLayout):
                 if i[9] is None:
                     self.tasks.append(Task(label[1], str(label[0]), i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]))
                 else:
-                    continue
-                    # shape = np.frombuffer(i[9], dtype=int)  # shape -> array[height, width]
-                    # img = np.frombuffer(i[8], dtype=np.uint8)  # img -> array[n, 1]
-                    # img.shape = shape
-                    # self.tasks.append(Task(label[1], str(label[0]), i[0], i[1], img, i[3], i[4], i[5], i[6], i[7]))
+                    # continue
+                    shape = np.frombuffer(i[9], dtype='int32')  # shape -> array[height, width]
+                    img = np.frombuffer(i[8], dtype=np.uint8)  # img -> array[n, 1]
+                    img.shape = shape
+                    self.tasks.append(Task(label[1], str(label[0]), i[0], i[1], img, i[3], i[4], i[5], i[6], i[7]))
                 self.labels[label[0]].add_task(self.tasks[-1])
 
         database.close()
@@ -233,7 +233,7 @@ class MainView(MDBoxLayout):
                 if it[10] is None:
                     self.tasks[i] = Task(lt[0], it[8], it[0], it[1], it[2], it[3], it[4], it[5], it[6], it[7])
                 else:
-                    shape = np.frombuffer(it[10], dtype=int)
+                    shape = np.frombuffer(it[10], dtype='int32')
                     img = np.frombuffer(it[9], dtype=np.uint8)
                     img.shape = shape
                     self.tasks[i] = Task(lt[0], it[8], it[0], it[1], img, it[3], it[4], it[5], it[6], it[7])
@@ -812,7 +812,7 @@ class CalendarView(MDRelativeLayout):
         for item in items:
             note = item[2]
             if item[3]:
-                shape = np.frombuffer(item[4], dtype=int)
+                shape = np.frombuffer(item[4], dtype='int32')
                 note = np.frombuffer(item[3], dtype=np.uint8)
                 note.shape = shape
             eta = item[6]
@@ -845,7 +845,7 @@ class CalendarView(MDRelativeLayout):
                 item = db.fetchone()
                 note = item[2]
                 if item[3]:
-                    shape = np.frombuffer(item[4], dtype=int)
+                    shape = np.frombuffer(item[4], dtype='int32')
                     note = np.frombuffer(item[3], dtype=np.uint8)
                     note.shape = shape
                 eta = item[6]
@@ -916,7 +916,7 @@ class EditScreen(MDScreen):
         self.widget_height = Window.size[0]*.1
         self.edit_window = RelativeLayout()
 
-        self.save_button = MDFlatButton(text='SAVE', size_hint_x=.35, font_size=10,
+        self.save_button = MDFlatButton(text='SAVE', size_hint_x=.35,
                                      md_bg_color=(0, 0, 0, 0), theme_text_color="Custom", text_color=(1, 1, 1, 1))
         self.cancel_button = MDFlatButton(text='CANCEL', size_hint_x=.35, font_size=10, on_release=self.exit,
                                      md_bg_color=(0, 0, 0, 0), theme_text_color="Custom", text_color=(1, 1, 1, .3))
@@ -1494,7 +1494,7 @@ class TrashCanView(MDBoxLayout):
             if i[10] is None:
                 self.tasks.append(Task(None, i[8], i[6], i[0], i[2], i[4], i[3], i[1], i[5], i[7]))
             else:
-                shape = np.frombuffer(i[10], dtype=int)
+                shape = np.frombuffer(i[10], dtype='int32')
                 img = np.frombuffer(i[9], dtype=np.uint8)
                 img.shape = shape
                 self.tasks.append(Task(None, i[8], i[6], i[0], img, i[4], i[3], i[1], i[5], i[7]))
@@ -1522,7 +1522,6 @@ class CameraLayout(MDFloatLayout):
 
     def take_photo(self):
         self.camera.play = False
-        #self.camera.export_to_png(f"images/task_image.png")
         self.clear_widgets()
 
         self.edit_grid = EditPhoto(self.camera.texture, md_bg_color=(1,1,1,.1), size_hint=(1, .8),
@@ -1672,7 +1671,6 @@ class EditPhoto(MDFloatLayout):
 
         image = texture_to_ndarray(self.image1)
         image = image[0:int(self.image1.size[0]), int(self.image1.size[1] * ratio_x[0]):int(self.image1.size[1] * ratio_x[1])]
-        #cv2.imwrite('images/cut_vertical.png', image)
         texture_cut = ndarray_to_texture(image)
 
         self.clear_widgets()
@@ -1828,36 +1826,19 @@ class TaskCamera(Camera):
             Rotate(angle=(-90), origin=[Window.size[0]/2, Window.size[1]/2])
         with self.canvas.after:
             PopMatrix()
-
         #self.resolution = Window.size
 
 
 def rotate_image_right(texture):
     is_texture = False
     image = texture
-    size = texture.size
     if isinstance(texture, Texture):
         is_texture = True
 
-        image = np.frombuffer(texture.pixels, dtype=int)
+        image = np.frombuffer(texture.pixels, dtype='int32')
 
         image = image.reshape(int(texture.size[1]), texture.size[0])
-        print(texture.size)
-        print(image.shape)
         image = image[0:int(image.shape[0]), 0:int(image.shape[1])]
-        print(image.shape)
-        size = (int(image.shape[1]), int(image.shape[0]))
-        print(size)
-        #tel
-        # image = np.frombuffer(texture.pixels, dtype=int)
-        # image = image.reshape(int(texture.size[1]/2), texture.size[0])
-        # image = image[0:image.shape[0], 0:int(image.shape[1]/2)]
-        # size = (int(image.shape[1]/2), int(image.shape[0]/2))
-
-
-        # (h, w) = image.shape[:2]
-        # dim = (480, 640)
-        # image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
 
     image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
 
@@ -1865,17 +1846,11 @@ def rotate_image_right(texture):
         image = ndarray_to_texture(image)
         image.flip_vertical()
 
-        # buf1 = cv2.flip(image, 0)
-        # buf = buf1.tostring()
-        # image_texture = Texture.create(size=size)
-        # image_texture.blit_buffer(buf, colorfmt='rgba', bufferfmt='ubyte')
-        # image = image_texture
-
     return image
 
 
 def texture_to_ndarray(texture):
-    image = np.frombuffer(texture.pixels, dtype=int)
+    image = np.frombuffer(texture.pixels, dtype='int32')
     image = image.reshape(texture.size[1], texture.size[0])
 
     return image
