@@ -19,7 +19,7 @@ from kivy.graphics.texture import Texture
 from kivy.graphics.context_instructions import PushMatrix, Rotate, PopMatrix
 
 import cv2
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import numpy as np
 from datetime import date
 from datetime import datetime
@@ -918,7 +918,7 @@ class EditScreen(MDScreen):
 
         self.save_button = MDFlatButton(text='SAVE', size_hint_x=.35,
                                      md_bg_color=(0, 0, 0, 0), theme_text_color="Custom", text_color=(1, 1, 1, 1))
-        self.cancel_button = MDFlatButton(text='CANCEL', size_hint_x=.35, font_size=10, on_release=self.exit,
+        self.cancel_button = MDFlatButton(text='CANCEL', size_hint_x=.35, on_release=self.exit,
                                      md_bg_color=(0, 0, 0, 0), theme_text_color="Custom", text_color=(1, 1, 1, .3))
         self.window = MDBoxLayout(
                     self.edit_window,
@@ -1518,6 +1518,8 @@ class CameraLayout(MDFloatLayout):
                                on_release=lambda x: self.take_photo(), icon_size=icon_size,
                                md_bg_color=(32/255, 3/255, 252/255, 1)))
         self.camera = TaskCamera(play=True)
+        self.camera.allow_stretch = True
+        self.camera.keep_ratio = True
         self.add_widget(self.camera)
 
     def take_photo(self):
@@ -1568,7 +1570,7 @@ class EditPhoto(MDFloatLayout):
         self.lines_addition = 50
 
     def add_photo(self, usage, texture):  # texture.size = width / height
-        self.image1 = cv2.imread('images/x_cut.jpg')
+        # self.texture = cv2.imread('images/x_cut.jpg')
         # plt.imshow(self.image1, 'gray') luminance
         # plt.axis('off')
         # plt.show()
@@ -1578,26 +1580,28 @@ class EditPhoto(MDFloatLayout):
         # image_texture = Texture.create(size=(self.image1.shape[1], self.image1.shape[0]), colorfmt='bgr')
         # image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
 
-        self.image1 = texture
+        self.texture = texture
         if usage == 'cut':
-            self.image1 = rotate_image_right(self.image1)
+            self.texture = rotate_image_right(self.texture)
+        else:
+            self.texture.flip_vertical()
         #print(texture.size)
 
-        self.photo = Image(texture=self.image1, size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
+        self.photo = Image(texture=self.texture, size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
 
-        print(self.image1)
+        # print(self.texture)
 
         self.add_widget(self.photo)
 
-        img_ratio = self.image1.size[0]/self.image1.size[1]  # width / height
+        img_ratio = self.texture.size[0] / self.texture.size[1]  # width / height
         real_ratio = Window.size[0]/(Window.size[1]*.8)
 
         if img_ratio > real_ratio:
-            self.im_width = min(Window.size[0]*.9, self.image1.size[0])
+            self.im_width = min(Window.size[0] * .9, self.texture.size[0])
             self.im_height = self.im_width/img_ratio
 
         else:
-            self.im_height = min(Window.size[1]*.8*.9, self.image1.size[1])
+            self.im_height = min(Window.size[1] * .8 * .9, self.texture.size[1])
             self.im_width = self.im_height * img_ratio
 
         self.x0 = (Window.size[0]/2) - (self.im_width/2)
@@ -1614,25 +1618,37 @@ class EditPhoto(MDFloatLayout):
             self.lines_horizontal()
 
     def lines_horizontal(self):
-        return
-        img = cv2.cvtColor(self.image1, cv2.COLOR_BGR2GRAY)
+        image = texture_to_ndarray(self.texture)
+        # image = image[0:-1, 0:-1, 0:3]
+        # plt.imshow(image)
+        # plt.axis('off')
+        # plt.show()
+        # print(image.shape)
+        # print(type(image))
+        # print(type(image[0][0][0]))
+        # image2 = cv2.imread('images/x_cut.jpg')
+        # print(image2.shape)
+        # print(type(image2))
+        # print(type(image2[0][0][0]))
+
+        image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         # plt.imshow(image_bin, 'gray')
         # plt.axis('off')
         # plt.show()
 
-        (h, w) = img.size[:2]
-        width = 1000
+        (h, w) = image_gray.shape[:2]
+        width = 1000  # TODO jakoś powiącać inaczej
         r = width / float(w)
         dim = (width, int(h * r))
-        img = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
+        img = cv2.resize(image_gray, dim, interpolation=cv2.INTER_AREA)
         nr = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         image_bin = np.where(img < nr[0], 0, 1)
 
         ratio_break = []
         first_white = -1
-        for curr_line in range(image_bin.size[0]):
-            for col in range(image_bin.size[1]):
+        for curr_line in range(image_bin.shape[0]):
+            for col in range(image_bin.shape[1]):
                 if image_bin[curr_line][col] == 0:  # if black pixel
                     if first_white > 0:
                         curr_ratio = ((curr_line - first_white) / 2 + first_white) / image_bin.shape[0]
@@ -1669,42 +1685,43 @@ class EditPhoto(MDFloatLayout):
         for line in self.lines:
             ratio_x.append((line.x - self.x0) / self.im_width)
 
-        image = texture_to_ndarray(self.image1)
-        image = image[0:int(self.image1.size[0]), int(self.image1.size[1] * ratio_x[0]):int(self.image1.size[1] * ratio_x[1])]
+        image = texture_to_ndarray(self.texture)
+        image = image[0:int(self.texture.size[1]), int(self.texture.size[0] * ratio_x[0]):int(self.texture.size[0] * ratio_x[1])]
         texture_cut = ndarray_to_texture(image)
 
         self.clear_widgets()
-        self.image1 = None
+        self.texture = None
         self.lines = []
         self.add_photo('divide', texture_cut)
 
     def save_all(self):
         task_images = []
         prev_ratio = 0
-        self.image1 = cv2.cvtColor(self.image1, cv2.COLOR_BGR2GRAY)
+        image = texture_to_ndarray(self.texture)
+        image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        (h, w) = self.image1.shape[:2]
+        (h, w) = image_gray.shape[:2]
         width = 1000
         r = width / float(w)
         dim = (width, int(h * r))
-        self.image1 = cv2.resize(self.image1, dim, interpolation=cv2.INTER_AREA)
+        image_gray = cv2.resize(image_gray, dim, interpolation=cv2.INTER_AREA)
 
-        nr = cv2.threshold(self.image1, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        for row in range(self.image1.shape[0]):
-            for col in range(self.image1.shape[1]):
-                if self.image1[row][col] > nr[0]:
-                    self.image1[row][col] = 0
+        nr = cv2.threshold(image_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        for row in range(image_gray.shape[0]):
+            for col in range(image_gray.shape[1]):
+                if image_gray[row][col] > nr[0]:
+                    image_gray[row][col] = 0
                 else:
-                    self.image1[row][col] = 255
+                    image_gray[row][col] = 255
 
         for line in self.lines:
             curr_ratio = (self.ymax - line.y) / self.im_height
-            img_cut = self.image1[int(self.image1.shape[0] * prev_ratio):int(self.image1.shape[0] * curr_ratio),  \
-                                                                                                0:int(self.image1.shape[1])]
+            img_cut = image_gray[int(image_gray.shape[0] * prev_ratio):int(image_gray.shape[0] * curr_ratio),  \
+                                                                                                0:int(image_gray.shape[1])]
             task_images.append(img_cut)
             prev_ratio = curr_ratio
 
-        img_cut = self.image1[int(self.image1.shape[0] * prev_ratio):self.image1.shape[0], 0:int(self.image1.shape[1])]
+        img_cut = image_gray[int(image_gray.shape[0] * prev_ratio):image_gray.shape[0], 0:int(image_gray.shape[1])]
         task_images.append(img_cut)
 
         return task_images
@@ -1850,9 +1867,11 @@ def rotate_image_right(texture):
 
 
 def texture_to_ndarray(texture):
-    image = np.frombuffer(texture.pixels, dtype='int32')
-    image = image.reshape(texture.size[1], texture.size[0])
-
+    # image = np.frombuffer(texture.pixels, dtype='int32')
+    # image = image.reshape(texture.size[1], texture.size[0])
+    image = np.frombuffer(texture.pixels, dtype='uint8')
+    image.shape = (texture.size[1], texture.size[0], 4)
+    # image = image[0:-1, 0:-1, 0:3]
     return image
 
 
