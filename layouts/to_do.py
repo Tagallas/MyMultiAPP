@@ -1,5 +1,3 @@
-import os
-
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.core.window import Window
@@ -44,37 +42,35 @@ from kivymd.uix.snackbar import Snackbar
 from kivymd.uix.textfield import MDTextField
 # from kivymd.uix.toolbar import MDTopAppBar
 
-from layouts.notebook import Notebook
 import include.get_from_db as get_from_db
 from include.sort import sort_task
 
-task_colors = [(1, 0, 0, .9), (245 / 255, 118 / 255, 39 / 255, 0.8), (245 / 255, 217 / 255, 39 / 255, 0.8),
+priority_colors = [(1, 0, 0, .9), (245 / 255, 118 / 255, 39 / 255, 0.8), (245 / 255, 217 / 255, 39 / 255, 0.8),
                    (47 / 255, 151 / 255, 33 / 255, 0.8)]
 
-menu_button_ratio = 8
-side_menu_button_ratio = 15
-m_size_global = Window.size[0] / menu_button_ratio
-s_butt_size_global = Window.size[1] / side_menu_button_ratio
+# tag in TopAppBar
 TAG = 'TO DO'
 
+# global tags used for sorting
 order_by_global = 'category'
 which_label_global = 'category'
 asc_global = 'asc'
 
 
+# MAIN SCREEN
 class ToDoList(MDScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         global TAG
         self.items = TAG
-        self.item_height = Window.size[1] / 30
+        self.task_height = Window.size[1] / 30
 
     def get_tag(self):
         return self.tag
 
-    def sort(self):
-        self.sort_menu = MDDropdownMenu(caller=self.ids.app_bar,
-                       items=self.create_sort_items(), width_mult=2.3, max_height=self.item_height*5+80)
+    def sort_tasks(self):
+        self.sort_menu = MDDropdownMenu(caller=self.ids.app_bar, items=self.create_sort_items(),
+                                        width_mult=2.3, max_height=self.task_height * 5 + 80)
         self.sort_menu.open()
 
     def delete_trash_dialog(self):
@@ -112,7 +108,7 @@ class ToDoList(MDScreen):
                 "icon": 'sort',
                 "text": "category",
                 "halign": "left",
-                "icon_size": self.item_height,
+                "icon_size": self.task_height,
                 "text_color": (1, 1, 1, 1),
                 "icon_color": (1, 1, 1, 1),
                 "line_color": (1, 1, 1, 0),
@@ -124,7 +120,7 @@ class ToDoList(MDScreen):
                 "icon": 'sort-numeric-ascending',
                 "text": "priority",
                 "halign": "left",
-                "icon_size": self.item_height,
+                "icon_size": self.task_height,
                 "text_color": (1, 1, 1, 1),
                 "icon_color": (1, 1, 1, 1),
                 "line_color": (1, 1, 1, 0),
@@ -137,7 +133,7 @@ class ToDoList(MDScreen):
                 "icon": 'sort-numeric-descending',
                 "text": "priority desc",
                 "halign": "left",
-                "icon_size": self.item_height,
+                "icon_size": self.task_height,
                 "text_color": (1, 1, 1, 1),
                 "icon_color": (1, 1, 1, 1),
                 "line_color": (1, 1, 1, 0),
@@ -150,7 +146,7 @@ class ToDoList(MDScreen):
                 "icon": 'sort-clock-ascending-outline',
                 "text": "deadline",
                 "halign": "left",
-                "icon_size": self.item_height,
+                "icon_size": self.task_height,
                 "text_color": (1, 1, 1, 1),
                 "icon_color": (1, 1, 1, 1),
                 "line_color": (1, 1, 1, 0),
@@ -163,7 +159,7 @@ class ToDoList(MDScreen):
                 "icon": 'sort-clock-descending-outline',
                 "text": "deadline desc",
                 "halign": "left",
-                "icon_size": self.item_height,
+                "icon_size": self.task_height,
                 "text_color": (1, 1, 1, 1),
                 "icon_color": (1, 1, 1, 1),
                 "line_color": (1, 1, 1, 0),
@@ -174,7 +170,8 @@ class ToDoList(MDScreen):
         ]
 
 
-class NavigationDrawerScreenManager(MDScreenManager): #  TODO tu musi być screenmanager żeby nie było laga
+# Defined there to reduce lag
+class NavigationDrawerScreenManager(MDScreenManager):
     pass
 
 
@@ -597,10 +594,10 @@ class Task(BoxLayout):
         ))
 
     def build_rest(self):
-        global task_colors
+        global priority_colors
         self.add_widget(Label(size_hint_x=.01))
         self.add_widget(MDIcon(icon='numeric-{}-box-outline'.format(self.priority), size_hint_x=.1,
-                               text_color=task_colors[self.priority-1], theme_text_color='Custom',
+                               text_color=priority_colors[self.priority - 1], theme_text_color='Custom',
                                pos_hint={"center_x": .5, "center_y": .53}))
         self.add_widget(Label(size_hint_x=.01))
         # if self.shape is None:
@@ -882,8 +879,8 @@ class CalendarTask(MDBoxLayout):
         self.x = Window.size[0]*.11
         self.y += Window.size[1]*.015
         self.orientation = 'horizontal'
-        global task_colors
-        self.md_bg_color = (task_colors[priority-1][0]*.3, task_colors[priority-1][1]*.3, task_colors[priority-1][2]*.3, 1)
+        global priority_colors
+        self.md_bg_color = (priority_colors[priority - 1][0] * .3, priority_colors[priority - 1][1] * .3, priority_colors[priority - 1][2] * .3, 1)
 
         if isinstance(note, str):
             self.add_widget(Label(text=note, size_hint_x=.8))
@@ -1134,7 +1131,7 @@ class EditScreen(MDScreen):
         self.window.height += self.widget_height * 4
         self.window.size_hint_x = .9
 
-        global task_colors
+        global priority_colors
         if task.eta:
             eta = task.eta
         else:
@@ -1181,7 +1178,7 @@ class EditScreen(MDScreen):
             MDBoxLayout(
                 Label(size_hint_x=.2, text='priority:'),
                 MDIconButton(id='priority', text=str(task.priority), icon=f'numeric-{task.priority}-box-outline',
-                             size_hint_x=.2, text_color=task_colors[task.priority-1], theme_text_color='Custom',
+                             size_hint_x=.2, text_color=priority_colors[task.priority - 1], theme_text_color='Custom',
                              on_release=lambda x: self.priority_menu.open(), pos_hint={"center_x": 0, "center_y": .6},
                              md_bg_color=(1, 1, 1, .03)),
                 Label(size_hint_x=.01),
@@ -1219,7 +1216,7 @@ class EditScreen(MDScreen):
             size_hint_y=None, height=self.widget_height*4.5, orientation='vertical'))
 
         priority_items = []
-        for number, color in enumerate(task_colors, 1):
+        for number, color in enumerate(priority_colors, 1):
             priority_items.append({
                 "viewclass": "MDIconButton",
                 "icon": f'numeric-{str(number)}-box-outline',
@@ -1305,8 +1302,8 @@ class EditScreen(MDScreen):
     def update_priority(self, new_priority):
         self.edit_window.children[0].children[-1].children[-2].icon = f'numeric-{new_priority}-box-outline'
         self.edit_window.children[0].children[-1].children[-2].text = str(new_priority)
-        global task_colors
-        self.edit_window.children[0].children[-1].children[-2].text_color = task_colors[new_priority-1]
+        global priority_colors
+        self.edit_window.children[0].children[-1].children[-2].text_color = priority_colors[new_priority - 1]
         self.priority_menu.dismiss()
 
     def update_label_name(self, label_name, rowid):

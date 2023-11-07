@@ -10,7 +10,7 @@
         id: screen_manager
         transition: FadeTransition()
 
-        # 1
+        # 1 Main Screen
         MDScreen:
             id: screen
             name: 'screen'
@@ -37,7 +37,7 @@
                     size_hint_y: None
                     height: self.minimum_height
 
-        # 2
+        # 2 Calendar
         MDScreen:
             id: calendar
             name: 'calendar'
@@ -68,12 +68,12 @@
                     size_hint_y: None
                     # height: 0
 
-        # 3
+        # 3 Edit Screen
         EditScreen:
             id: edit_screen
             name: 'edit_screen'
 
-        # 4
+        # 4 Camera
         MDScreen:
             id: camara_screen
             name: 'camera_screen'
@@ -81,7 +81,7 @@
                 id: camera_layout
                 orientation: 'vertical'
 
-        # 5
+        # 5 Trash can screen
         MDScreen:
             id: 'trash_can'
             name: 'trash_can'
