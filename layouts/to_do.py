@@ -19,7 +19,7 @@ from kivy.graphics.texture import Texture
 from kivy.graphics.context_instructions import PushMatrix, Rotate, PopMatrix
 
 import cv2
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import numpy as np
 from datetime import date
 from datetime import datetime
@@ -1517,16 +1517,14 @@ class CameraLayout(MDFloatLayout):
         self.add_widget(MDIconButton(pos_hint={'center_x': .5}, icon='camera-outline', size_hint=(None, None),
                                on_release=lambda x: self.take_photo(), icon_size=icon_size,
                                md_bg_color=(32/255, 3/255, 252/255, 1)))
-        self.camera = TaskCamera(play=True)
-        self.camera.allow_stretch = True
-        self.camera.keep_ratio = True
+        self.camera = TaskCamera(play=True, keep_ratio=True, allow_stretch=True)
         self.add_widget(self.camera)
 
     def take_photo(self):
         self.camera.play = False
         self.clear_widgets()
 
-        self.edit_grid = EditPhoto(self.camera.texture, md_bg_color=(1,1,1,.1), size_hint=(1, .8),
+        self.edit_grid = EditPhoto(self.camera.texture, md_bg_color=(1, 1, 1, .1), size_hint=(1, .8),
                                    pos_hint={'center_x': .5, 'center_y': .5})
         self.add_widget(self.edit_grid)
 
@@ -1585,23 +1583,25 @@ class EditPhoto(MDFloatLayout):
             self.texture = rotate_image_right(self.texture)
         else:
             self.texture.flip_vertical()
+            self.texture.flip_horizontal()
         #print(texture.size)
 
-        self.photo = Image(texture=self.texture, size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5})
-
+        self.photo = Image(texture=self.texture, size_hint=(.9, .9), pos_hint={'center_x': .5, 'center_y': .5},
+                           keep_ratio=True, allow_stretch=True)
+        print(self.photo.width)
         # print(self.texture)
 
         self.add_widget(self.photo)
 
         img_ratio = self.texture.size[0] / self.texture.size[1]  # width / height
-        real_ratio = Window.size[0]/(Window.size[1]*.8)
+        window_ratio = Window.size[0] / (Window.size[1] * .8)
 
-        if img_ratio > real_ratio:
-            self.im_width = min(Window.size[0] * .9, self.texture.size[0])
+        if img_ratio > window_ratio:
+            self.im_width = Window.size[0] * .9
             self.im_height = self.im_width/img_ratio
 
         else:
-            self.im_height = min(Window.size[1] * .8 * .9, self.texture.size[1])
+            self.im_height = Window.size[1] * .8 * .9
             self.im_width = self.im_height * img_ratio
 
         self.x0 = (Window.size[0]/2) - (self.im_width/2)
@@ -1728,8 +1728,8 @@ class EditPhoto(MDFloatLayout):
 
     def on_touch_down(self, touch):
         for i in range(len(self.lines)):
-            if (self.lines[i].x-self.lines[i].w_size[0]) <= touch.x <= self.lines[i].x+self.lines[i].w_size[0] \
-                    and (self.lines[i].y-self.lines[i].w_size[1]) <= touch.y <= self.lines[i].y+self.lines[i].w_size[1]:
+            if (self.lines[i].x-self.lines[i].w_size[0]*1.5) <= touch.x <= self.lines[i].x+self.lines[i].w_size[0]*1.5 \
+                    and (self.lines[i].y-self.lines[i].w_size[1]*1.5) <= touch.y <= self.lines[i].y+self.lines[i].w_size[1]*1.5:
                 self.line_idx = i
 
     def on_touch_up(self, touch):
@@ -1776,8 +1776,8 @@ class CutLine(MDBoxLayout):
     def __init__(self, orientation, size, **kwargs):
         super().__init__(**kwargs)
         # radius = 3
-        radius = 5
-        size += 36
+        radius = 15
+        size += 36*3
         self.orientation = orientation
         self.circle = [None, None]
         if orientation == 'vertical':
@@ -1796,8 +1796,8 @@ class CutLine(MDBoxLayout):
             with self.canvas:
                 Color(1, 0, 0)
                 self.line = Line(points=[p1[0], p1[1]+radius, p2[0], p2[1]-radius], width=radius * .2)
-                self.circle[0] = Line(circle=(p1[0], p1[1], radius),)
-                self.circle[1] = Line(circle=(p2[0], p2[1], radius),)
+                self.circle[0] = Line(circle=(p1[0], p1[1], radius), width=radius * .2)
+                self.circle[1] = Line(circle=(p2[0], p2[1], radius), width=radius * .2)
 
         else:
             if Window.size[0] > size:
@@ -1808,16 +1808,15 @@ class CutLine(MDBoxLayout):
 
             self.size = self.w_size
 
-            p1 = (self.x+radius*2, self.y)
-            p2 = (self.x+self.width-(2*radius), self.y)
+            p1 = (self.x, self.y)
+            p2 = (self.x+self.width, self.y)
             with self.canvas:
                 Color(1, 0, 0)
                 self.line = Line(points=[p1[0]+radius, p1[1], p2[0]-radius, p2[1]], width=radius * .2)
-                self.circle[0] = Line(circle=(p1[0], p1[1], radius),)
-                self.circle[1] = Line(circle=(p2[0], p2[1], radius),)
+                self.circle[0] = Line(circle=(p1[0], p1[1], radius), width=radius * .2)
+                self.circle[1] = Line(circle=(p2[0], p2[1], radius), width=radius * .2)
 
     def update_pos(self, pos):
-        radius = 5
         if self.orientation == 'vertical':
             self.line.points = (pos, self.line.points[1], pos, self.line.points[3])
             for circle in self.circle:
@@ -1861,7 +1860,7 @@ def rotate_image_right(texture):
 
     if is_texture:
         image = ndarray_to_texture(image)
-        image.flip_vertical()
+        image.flip_horizontal()
 
     return image
 
