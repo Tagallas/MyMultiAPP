@@ -1728,8 +1728,8 @@ class EditPhoto(MDFloatLayout):
 
     def on_touch_down(self, touch):
         for i in range(len(self.lines)):
-            if (self.lines[i].x-self.lines[i].w_size[0]*1.5) <= touch.x <= self.lines[i].x+self.lines[i].w_size[0]*1.5 \
-                    and (self.lines[i].y-self.lines[i].w_size[1]*1.5) <= touch.y <= self.lines[i].y+self.lines[i].w_size[1]*1.5:
+            if (self.lines[i].x-self.lines[i].w_size[0]*2) <= touch.x <= self.lines[i].x+self.lines[i].w_size[0]*2 \
+                    and (self.lines[i].y-self.lines[i].w_size[1]*2) <= touch.y <= self.lines[i].y+self.lines[i].w_size[1]*2:
                 self.line_idx = i
 
     def on_touch_up(self, touch):
@@ -1808,8 +1808,8 @@ class CutLine(MDBoxLayout):
 
             self.size = self.w_size
 
-            p1 = (self.x, self.y)
-            p2 = (self.x+self.width, self.y)
+            p1 = (self.x+radius*.5, self.y)
+            p2 = (self.x+self.width-(.5*radius), self.y)
             with self.canvas:
                 Color(1, 0, 0)
                 self.line = Line(points=[p1[0]+radius, p1[1], p2[0]-radius, p2[1]], width=radius * .2)
