@@ -10,7 +10,7 @@
         id: screen_manager
         transition: FadeTransition()
 
-        # 1 Main Screen
+        # 1 Labels
         MDScreen:
             id: screen
             name: 'screen'
@@ -25,7 +25,7 @@
                     md_bg_color: 0, 0, 0, 0
                     icon: 'sort'
                     size_hint_x: .2
-                    on_release: root.sort()
+                    on_release: root.sort_tasks()
 
             MDScrollView:
                 size_hint_y: 1 - app_bar_height
