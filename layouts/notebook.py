@@ -1,8 +1,5 @@
-from kivy.lang import Builder
 from kivy.uix.boxlayout import BoxLayout
-from kivymd.uix.button import MDIconButton, MDFlatButton, MDRectangleFlatIconButton
-
-from time import sleep
+from kivymd.uix.button import MDRectangleFlatIconButton
 
 
 class Notebook(BoxLayout):

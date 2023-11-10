@@ -1,6 +1,10 @@
-#: import MDRaisedButton kivymd.uix.button.MDRaisedButton
 #: import FadeTransition kivy.uix.screenmanager.FadeTransition
-#: import MDFadeSlideTransition kivymd.uix.transition.MDFadeSlideTransition
+
+#: import MainView layouts.labels.MainView
+#: import CalendarView layouts.calendar.CalendarView
+#: import CameraLayout layouts.camera.CameraLayout
+#: import TrashCanView layouts.trash.TrashCanView
+#: import EditScreen layouts.edit.EditScreen
 
 #: set app_bar_height .08
 
@@ -117,7 +121,7 @@
         close_on_click: True
 
         MDScrollView:
-            CustomNavigationDrawer: #nic nie dodawaj bo sie usunie
+            CustomNavigationDrawer:
                 id: md_list_nav_drawer
 
 <CalendarBar>
