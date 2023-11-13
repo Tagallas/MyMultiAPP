@@ -236,13 +236,13 @@ class CustomNavigationDrawer(MDList):
         self.parent.parent.parent.ids.screen_manager.current = 'edit_screen'
         # when editing all labels
         if but.text == 'all':
-            self.parent.parent.parent.ids.edit_screen.edit_all_labels()
+            self.parent.parent.parent.ids.edit_screen.build_labels()
         # when adding new label
         elif but.text == 'Add Label':
-            self.parent.parent.parent.ids.edit_screen.add_label()
+            self.parent.parent.parent.ids.edit_screen.build_label(-1, "")
         # when editing one label
         else:
-            self.parent.parent.parent.ids.edit_screen.edit_label(int(but.id), but.text)
+            self.parent.parent.parent.ids.edit_screen.build_label(int(but.id), but.text)
 
     # displaying and sorting all tasks by labels
     def task_by_labels(self, butt):

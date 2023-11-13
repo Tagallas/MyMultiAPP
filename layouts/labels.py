@@ -275,8 +275,9 @@ class LabelLayout(MDBoxLayout):
                 self.disabled_tasks.append(task)
                 task.opacity = .3
 
+                # for every task
                 for j in range(i, len(self.tasks)):
-                    # TODO co to jest?
+                    # move disabled task to the bottom
                     self.children[size-j-1], self.children[size-j] = self.children[size-j], self.children[size-j-1]
                 return
 
@@ -297,7 +298,7 @@ class LabelLayout(MDBoxLayout):
                 self.sort_label_layout()
                 return
 
-    # editing task (called by task)
+    # editing task
     def add_window(self):
         # changing screen to edit
         self.parent.parent.parent.parent.parent.ids.screen_manager.current = 'edit_screen'
@@ -388,6 +389,7 @@ class LabelLayout(MDBoxLayout):
         self.priority = new_name[1]
         database.close()
 
+    # moving task from another label
     def add_task(self, task):
         # increasing widget size to make space for new task
         self.height += self.widget_height
@@ -613,7 +615,7 @@ class Task(BoxLayout):
                 # setting current screen to edit
                 self.parent.parent.parent.parent.parent.ids.screen_manager.current = 'edit_screen'
                 # giving task instance to edit
-                self.parent.parent.parent.parent.parent.ids.edit_screen.edit_task(self)
+                self.parent.parent.parent.parent.parent.ids.edit_screen.build_task(self)
             # if sorted by labels
             else:
                 # closing navigation drawer
@@ -621,7 +623,7 @@ class Task(BoxLayout):
                 # setting current screen to edit
                 self.parent.parent.parent.parent.parent.parent.ids.screen_manager.current = 'edit_screen'
                 # giving task instance to edit
-                self.parent.parent.parent.parent.parent.parent.ids.edit_screen.edit_task(self)
+                self.parent.parent.parent.parent.parent.parent.ids.edit_screen.build_task(self)
 
     # permanent delete of a task
     def delete_permanent(self, *args):

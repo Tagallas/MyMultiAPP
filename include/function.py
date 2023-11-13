@@ -6,6 +6,7 @@ from kivy.graphics.texture import Texture
 from include.sort import sort_task
 
 
+# sorting tasks
 def sort(tasks, asc):
     sort_task(tasks)
     # reverse order
@@ -15,6 +16,7 @@ def sort(tasks, asc):
             tasks[i], tasks[length - i - 1] = tasks[length - i - 1], tasks[i]
 
 
+# rotating right 90 degrees
 def rotate_image_right(texture):
     is_texture = False
     image = texture

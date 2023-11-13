@@ -1,6 +1,7 @@
 import sqlite3
 
 
+# getting label names and rowids
 def get_label_names(database):
     database = sqlite3.connect(f'databases/{database}.db')
     db = database.cursor()
