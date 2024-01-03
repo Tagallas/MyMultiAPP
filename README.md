@@ -1,4 +1,4 @@
-TO DO App
+![image](https://github.com/Tagallas/MyMultiAPP/assets/100998992/3895cecb-adcd-4845-9609-39098928829c)TO DO App
 
 Mobile App python project in kivy/kivymd, converted by buildozer to ".exe" format
 
@@ -15,3 +15,5 @@ Project functionalities:
 Soon will be added:
 - calledar view (where you can see task for specific day/week)
 - push up notifications (when task will soon meet the deadline)
+
+![image](https://github.com/Tagallas/MyMultiAPP/assets/100998992/c50f534e-e2ee-4ecc-bb60-4eeb10705c9d)
